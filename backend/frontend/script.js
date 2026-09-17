@@ -47,7 +47,7 @@ if (registerForm) {
         try {
 
             const response = await fetch(
-                "http://127.0.0.1:8000/register",
+                "https://studyx-ai-study-assistant.onrender.com/register",
                 {
                     method: "POST",
 
@@ -121,7 +121,7 @@ if (loginForm) {
         try {
 
             const response = await fetch(
-                "http://127.0.0.1:8000/login",
+                "https://studyx-ai-study-assistant.onrender.com/login",
                 {
                     method: "POST",
 
