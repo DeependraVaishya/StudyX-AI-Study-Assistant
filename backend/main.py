@@ -65,8 +65,9 @@ app.add_middleware(
 # MONGODB
 # =========================================================
 
-client = MongoClient("mongodb://127.0.0.1:27017/")
-db = client["studyx"]
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["StudyX"]
 
 users_collection = db["users"]
 materials_collection = db["materials"]
