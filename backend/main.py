@@ -18,7 +18,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from passlib.context import CryptContext
 from bson import ObjectId
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from pydantic import BaseModel
 import fitz
@@ -86,23 +85,26 @@ pwd_context = CryptContext(
 )
 
 
-# =========================================================
+# ================================
 # LAZY EMBEDDING MODEL
-# =========================================================
+# ================================
 
 embedding_model = None
+
 
 def get_embedding_model():
     global embedding_model
 
     if embedding_model is None:
         print("Loading embedding model...")
+
+        from sentence_transformers import SentenceTransformer
+
         embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
         print("Embedding model loaded successfully!")
 
     return embedding_model
-
-
 # =========================================================
 # MODELS
 # =========================================================
