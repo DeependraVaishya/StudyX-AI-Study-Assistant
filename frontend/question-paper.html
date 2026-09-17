@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Question Paper Generator | StudyX</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+/* =========================================================
+   STUDYX QUESTION PAPER — PREMIUM UI
+   Prefixed classes prevent conflicts with style.css
+========================================================= */
+:root{
+    --qp-bg:#070910;
+    --qp-panel:#10131d;
+    --qp-panel2:#0d1019;
+    --qp-border:rgba(255,255,255,.09);
+    --qp-muted:#7f879b;
+    --qp-text:#f5f7ff;
+    --qp-purple:#8b5cf6;
+    --qp-purple2:#6d4aff;
+    --qp-blue:#5b7cff;
+    --qp-green:#46d7a5;
+}
+
+body.qp-body{
+    margin:0;
+    background:
+        radial-gradient(circle at 72% -10%,rgba(91,124,255,.10),transparent 28%),
+        radial-gradient(circle at 35% 0%,rgba(139,92,246,.08),transparent 25%),
+        var(--qp-bg);
+    color:var(--qp-text);
+    font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+.qp-layout{
+    min-height:100vh;
+    display:grid;
+    grid-template-columns:260px minmax(0,1fr);
+}
+
+/* SIDEBAR */
+.qp-sidebar{
+    position:sticky;
+    top:0;
+    height:100vh;
+    padding:24px 16px 18px;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    background:rgba(9,12,19,.96);
+    border-right:1px solid var(--qp-border);
+}
+
+.qp-logo{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    margin:2px 10px 36px;
+    color:#fff;
+    text-decoration:none;
+}
+
+.qp-logo-icon{
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    border-radius:11px;
+    background:linear-gradient(135deg,#8b5cf6,#5f35dc);
+    box-shadow:0 8px 28px rgba(109,40,217,.30);
+    font-weight:800;
+    font-size:19px;
+}
+
+.qp-logo-title{
+    font-size:19px;
+    font-weight:800;
+    line-height:1;
+}
+.qp-logo-sub{
+    margin-top:4px;
+    color:#72798b;
+    font-size:10px;
+}
+
+.qp-nav{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+}
+
+.qp-nav a{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    min-height:44px;
+    padding:0 13px;
+    box-sizing:border-box;
+    border:1px solid transparent;
+    border-radius:11px;
+    color:#9299aa;
+    text-decoration:none;
+    font-size:13px;
+    transition:.2s ease;
+}
+
+.qp-nav a:hover{
+    color:#fff;
+    background:rgba(255,255,255,.045);
+}
+
+.qp-nav a.active{
+    color:#fff;
+    background:linear-gradient(90deg,rgba(139,92,246,.25),rgba(91,124,255,.12));
+    border-color:rgba(139,92,246,.30);
+    box-shadow:inset 3px 0 0 #8b5cf6;
+}
+
+.qp-nav-icon{
+    width:21px;
+    text-align:center;
+    font-size:16px;
+}
+
+.qp-sidebar-bottom{
+    margin-top:auto;
+}
+
+.qp-user{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 10px;
+    margin-bottom:9px;
+    border-top:1px solid rgba(255,255,255,.07);
+}
+
+.qp-avatar{
+    width:38px;
+    height:38px;
+    display:grid;
+    place-items:center;
+    flex-shrink:0;
+    border-radius:50%;
+    background:linear-gradient(135deg,#7c5cff,#5b7cff);
+    color:#fff;
+    font-weight:800;
+}
+
+.qp-user strong{
+    display:block;
+    color:#fff;
+    font-size:12px;
+}
+.qp-user small{
+    display:block;
+    margin-top:3px;
+    color:#72798b;
+    font-size:10px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:150px;
+}
+
+.qp-logout{
+    width:100%;
+    height:40px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:10px;
+    background:transparent;
+    color:#b8a7ff;
+    cursor:pointer;
+    font-size:12px;
+}
+.qp-logout:hover{background:rgba(139,92,246,.09)}
+
+/* MAIN */
+.qp-main{
+    min-width:0;
+    padding:30px 42px 70px;
+}
+
+.qp-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    margin-bottom:24px;
+}
+
+.qp-eyebrow{
+    color:#a78bfa;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:1.8px;
+}
+
+.qp-title{
+    margin:6px 0 7px;
+    font-size:36px;
+    line-height:1.08;
+    letter-spacing:-1.5px;
+}
+.qp-title span{
+    background:linear-gradient(90deg,#fff,#bdaaff,#7595ff);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+}
+.qp-subtitle{
+    margin:0;
+    color:#7f879b;
+    font-size:13px;
+}
+
+.qp-header-badge{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 14px;
+    border:1px solid rgba(139,92,246,.25);
+    border-radius:12px;
+    background:rgba(139,92,246,.06);
+    color:#c7bbff;
+    font-size:11px;
+    line-height:1.35;
+    max-width:240px;
+}
+.qp-header-badge b{color:#fff}
+
+/* HERO — deliberately no inherited flex/min-height */
+.qp-hero{
+    min-height:0 !important;
+    height:auto !important;
+    display:grid !important;
+    grid-template-columns:1.4fr .8fr;
+    align-items:center;
+    gap:24px;
+    padding:20px 22px;
+    margin-bottom:18px;
+    box-sizing:border-box;
+    border:1px solid rgba(139,92,246,.20);
+    border-radius:17px;
+    background:
+        radial-gradient(circle at 85% 50%,rgba(109,74,255,.17),transparent 34%),
+        linear-gradient(110deg,rgba(139,92,246,.09),rgba(255,255,255,.015));
+    overflow:hidden;
+}
+
+.qp-hero-left{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+.qp-hero-icon{
+    width:56px;
+    height:56px;
+    flex-shrink:0;
+    display:grid;
+    place-items:center;
+    border-radius:15px;
+    background:linear-gradient(135deg,rgba(139,92,246,.30),rgba(91,124,255,.18));
+    border:1px solid rgba(167,139,250,.22);
+    font-size:27px;
+}
+.qp-hero h2{
+    margin:0 0 5px;
+    font-size:18px;
+    letter-spacing:-.3px;
+}
+.qp-hero p{
+    margin:0;
+    color:#8a91a3;
+    font-size:11px;
+    line-height:1.55;
+    max-width:620px;
+}
+
+.qp-hero-points{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+}
+.qp-hero-point{
+    padding:10px 8px;
+    text-align:center;
+    border-left:1px solid rgba(255,255,255,.07);
+}
+.qp-hero-point strong{
+    display:block;
+    color:#fff;
+    font-size:11px;
+}
+.qp-hero-point span{
+    display:block;
+    margin-top:3px;
+    color:#747c8f;
+    font-size:9px;
+}
+
+/* WORKSPACE */
+.qp-workspace{
+    display:grid;
+    grid-template-columns:minmax(0,1.45fr) minmax(290px,.75fr);
+    gap:18px;
+    align-items:start;
+}
+
+.qp-card{
+    background:linear-gradient(180deg,rgba(17,20,31,.98),rgba(13,16,25,.98));
+    border:1px solid var(--qp-border);
+    border-radius:17px;
+    padding:20px;
+    box-shadow:0 15px 45px rgba(0,0,0,.13);
+}
+
+.qp-card-head{
+    display:flex;
+    align-items:center;
+    gap:11px;
+    margin-bottom:18px;
+}
+
+.qp-step{
+    width:32px;
+    height:32px;
+    display:grid;
+    place-items:center;
+    flex-shrink:0;
+    border-radius:50%;
+    background:linear-gradient(135deg,#7560ff,#4e78ff);
+    box-shadow:0 8px 22px rgba(91,92,255,.23);
+    font-weight:800;
+    font-size:13px;
+}
+.qp-card-head h3{
+    margin:0;
+    font-size:16px;
+}
+.qp-card-head p{
+    margin:3px 0 0;
+    color:#737b8d;
+    font-size:10px;
+}
+
+.qp-form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:13px;
+}
+.qp-field.full{grid-column:1/-1}
+
+.qp-label{
+    display:block;
+    margin-bottom:7px;
+    color:#bfc4d0;
+    font-size:10px;
+    font-weight:750;
+    letter-spacing:.5px;
+}
+
+.qp-select,
+.qp-input{
+    width:100%;
+    height:44px;
+    padding:0 12px;
+    box-sizing:border-box;
+    outline:none;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:10px;
+    background:#0a0d14;
+    color:#f7f8ff;
+    font:inherit;
+    font-size:11px;
+    transition:.2s;
+}
+.qp-select:focus,.qp-input:focus{
+    border-color:rgba(139,92,246,.65);
+    box-shadow:0 0 0 3px rgba(139,92,246,.08);
+}
+
+.qp-type-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:7px;
+}
+.qp-type{
+    height:44px;
+    border:1px solid rgba(255,255,255,.09);
+    border-radius:10px;
+    background:#0a0d14;
+    color:#8e96a7;
+    cursor:pointer;
+    font-size:10px;
+    font-weight:650;
+    transition:.2s;
+}
+.qp-type:hover{color:#fff;border-color:rgba(139,92,246,.35)}
+.qp-type.selected{
+    color:#fff;
+    border-color:#7659ff;
+    background:linear-gradient(135deg,rgba(139,92,246,.20),rgba(91,124,255,.10));
+    box-shadow:inset 0 0 0 1px rgba(139,92,246,.08);
+}
+
+.qp-generate{
+    width:100%;
+    height:48px;
+    margin-top:17px;
+    border:0;
+    border-radius:10px;
+    background:linear-gradient(100deg,#7652f5,#5678ff);
+    color:#fff;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:800;
+    box-shadow:0 10px 28px rgba(91,75,255,.20);
+    transition:.2s;
+}
+.qp-generate:hover{transform:translateY(-1px);filter:brightness(1.07)}
+.qp-generate:disabled{opacity:.6;cursor:wait;transform:none}
+
+.qp-status{
+    min-height:17px;
+    margin:9px 0 0;
+    text-align:center;
+    color:#777f91;
+    font-size:10px;
+}
+.qp-status.error{color:#f87171}
+.qp-status.success{color:#61ddb1}
+
+/* WHAT YOU GET */
+.qp-benefits{
+    display:grid;
+    gap:8px;
+}
+.qp-benefit{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:11px;
+    border:1px solid rgba(255,255,255,.065);
+    border-radius:11px;
+    background:rgba(7,10,16,.65);
+}
+.qp-check{
+    width:24px;
+    height:24px;
+    display:grid;
+    place-items:center;
+    flex-shrink:0;
+    border-radius:50%;
+    background:rgba(91,124,255,.16);
+    color:#7e9cff;
+    font-size:12px;
+}
+.qp-benefit strong{
+    display:block;
+    font-size:11px;
+}
+.qp-benefit span{
+    display:block;
+    margin-top:2px;
+    color:#72798a;
+    font-size:9px;
+    line-height:1.4;
+}
+
+.qp-tip{
+    margin-top:12px;
+    padding:12px;
+    border:1px solid rgba(91,124,255,.20);
+    border-radius:11px;
+    background:linear-gradient(100deg,rgba(91,124,255,.09),rgba(139,92,246,.06));
+}
+.qp-tip b{
+    display:block;
+    margin-bottom:4px;
+    color:#d9d4ff;
+    font-size:10px;
+}
+.qp-tip span{
+    color:#7f8799;
+    font-size:9px;
+    line-height:1.45;
+}
+
+/* PREVIEW */
+.qp-preview{
+    display:none;
+    margin-top:18px;
+}
+.qp-preview.show{display:block}
+
+.qp-preview-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:15px;
+    margin-bottom:10px;
+}
+.qp-preview-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.qp-preview-title .qp-step{width:30px;height:30px}
+.qp-preview-title h3{margin:0;font-size:15px}
+.qp-preview-title p{margin:3px 0 0;color:#72798a;font-size:9px}
+
+.qp-actions{
+    display:flex;
+    gap:7px;
+    flex-wrap:wrap;
+}
+.qp-action{
+    height:36px;
+    padding:0 12px;
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:9px;
+    background:#111521;
+    color:#dfe2eb;
+    cursor:pointer;
+    font-size:10px;
+    font-weight:700;
+}
+.qp-action:hover{background:#181c29}
+.qp-action.primary{
+    border-color:#7659ff;
+    background:#6d4aff;
+    color:#fff;
+}
+
+.qp-paper{
+    background:#fff;
+    color:#181a20;
+    border-radius:12px;
+    padding:36px 40px;
+    box-shadow:0 20px 55px rgba(0,0,0,.25);
+}
+.qp-paper-head{
+    text-align:center;
+    border-bottom:2px solid #1f2228;
+    padding-bottom:15px;
+    margin-bottom:17px;
+}
+.qp-paper-head h2{margin:0 0 5px;font-size:21px}
+.qp-paper-head p{margin:3px 0;color:#5e626a;font-size:10px}
+.qp-paper-meta{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:8px 0 12px;
+    border-bottom:1px solid #ddd;
+    font-size:10px;
+}
+.qp-paper-section{margin-top:20px}
+.qp-paper-section h4{
+    margin:0 0 10px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+}
+.qp-question{
+    margin:0 0 14px;
+    font-size:11px;
+    line-height:1.6;
+}
+.qp-options{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:4px 20px;
+    margin-top:5px;
+    color:#50545c;
+    font-size:10px;
+}
+
+/* RESPONSIVE */
+@media(max-width:1050px){
+    .qp-layout{grid-template-columns:230px minmax(0,1fr)}
+    .qp-main{padding:28px 28px 60px}
+    .qp-hero{grid-template-columns:1fr}
+    .qp-hero-points{max-width:600px}
+    .qp-workspace{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+    .qp-layout{display:block}
+    .qp-sidebar{display:none}
+    .qp-main{padding:24px 16px 45px}
+    .qp-header{flex-direction:column}
+    .qp-title{font-size:30px}
+    .qp-header-badge{max-width:none;width:100%;box-sizing:border-box}
+    .qp-form-grid{grid-template-columns:1fr}
+    .qp-field.full{grid-column:auto}
+    .qp-type-grid{grid-template-columns:1fr 1fr}
+    .qp-hero-left{align-items:flex-start}
+    .qp-hero-points{grid-template-columns:1fr 1fr 1fr}
+    .qp-preview-head{align-items:flex-start;flex-direction:column}
+    .qp-paper{padding:24px 17px}
+    .qp-paper-meta{flex-direction:column}
+    .qp-options{grid-template-columns:1fr}
+}
+
+/* PRINT */
+@media print{
+    body.qp-body{background:#fff}
+    .qp-sidebar,.qp-header,.qp-hero,.qp-workspace,.qp-preview-head{display:none!important}
+    .qp-layout{display:block}
+    .qp-main{padding:0}
+    .qp-preview{display:block!important;margin:0}
+    .qp-paper{border-radius:0;box-shadow:none;padding:18px}
+}
+</style>
+</head>
+
+<body class="qp-body">
+
+<div class="qp-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="qp-sidebar">
+        <a href="dashboard.html" class="qp-logo">
+            <div class="qp-logo-icon">S</div>
+            <div>
+                <div class="qp-logo-title">StudyX</div>
+                <div class="qp-logo-sub">AI Study Assistant</div>
+            </div>
+        </a>
+
+        <nav class="qp-nav">
+            <a href="dashboard.html"><span class="qp-nav-icon">⌂</span>Dashboard</a>
+
+            <a href="ai-tutor.html"><span class="qp-nav-icon">✦</span>AI Tutor</a>
+            <a href="study-materials.html"><span class="qp-nav-icon">▣</span>Study Materials</a>
+            <a href="quiz.html"><span class="qp-nav-icon">✓</span>Quiz Generator</a>
+            <a href="question-paper.html" class="active"><span class="qp-nav-icon">▤</span>Question Paper</a>
+            <a href="viva.html" class="nav-item">
+    <span>🎤</span>
+    AI Viva
+</a>
+            <a href="study-planner.html"><span class="qp-nav-icon">◷</span>Study Planner</a>
+            <a href="progress.html"><span class="qp-nav-icon">▥</span>Progress</a>
+        </nav>
+
+        <div class="qp-sidebar-bottom">
+            <div class="qp-user">
+                <div class="qp-avatar" id="avatar">S</div>
+                <div>
+                    <strong id="userName">Student</strong>
+                    <small id="userEmail">student@example.com</small>
+                </div>
+            </div>
+            <button class="qp-logout" id="logoutBtn">↪ &nbsp; Logout</button>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="qp-main">
+
+        <header class="qp-header">
+            <div>
+                <div class="qp-eyebrow">STUDYX AI • EXAM TOOLS</div>
+                <h1 class="qp-title">Question Paper <span>Generator</span></h1>
+                <p class="qp-subtitle">Create a structured exam paper directly from your uploaded study material.</p>
+            </div>
+
+            <div class="qp-header-badge">
+                <span>✦</span>
+                <div><b>Material-grounded AI</b><br>Questions stay focused on your selected material.</div>
+            </div>
+        </header>
+
+        <!-- HERO -->
+        <section class="qp-hero">
+            <div class="qp-hero-left">
+                <div class="qp-hero-icon">▤</div>
+                <div>
+                    <h2>Build a paper from what you already studied</h2>
+                    <p>Select a material, choose your exam pattern, and let StudyX prepare a clean question paper from the stored PDF content.</p>
+                </div>
+            </div>
+
+            <div class="qp-hero-points">
+                <div class="qp-hero-point"><strong>📚</strong><span>Your Material</span></div>
+                <div class="qp-hero-point"><strong>⚙</strong><span>Custom Format</span></div>
+                <div class="qp-hero-point"><strong>🖨</strong><span>Print Ready</span></div>
+            </div>
+        </section>
+
+        <!-- CONFIG + BENEFITS -->
+        <section class="qp-workspace">
+
+            <div class="qp-card">
+                <div class="qp-card-head">
+                    <div class="qp-step">1</div>
+                    <div>
+                        <h3>Configure Your Paper</h3>
+                        <p>Set your source and exam preferences.</p>
+                    </div>
+                </div>
+
+                <div class="qp-form-grid">
+
+                    <div class="qp-field full">
+                        <label class="qp-label" for="material">STUDY MATERIAL</label>
+                        <select class="qp-select" id="material">
+                            <option value="">Loading materials...</option>
+                        </select>
+                    </div>
+
+                    <div class="qp-field full">
+                        <label class="qp-label">QUESTION TYPE</label>
+                        <div class="qp-type-grid">
+                            <button type="button" class="qp-type selected" data-type="mixed">Mixed</button>
+                            <button type="button" class="qp-type" data-type="mcq">MCQ</button>
+                            <button type="button" class="qp-type" data-type="short">Short</button>
+                            <button type="button" class="qp-type" data-type="long">Long</button>
+                        </div>
+                    </div>
+
+                    <div class="qp-field">
+                        <label class="qp-label" for="count">TOTAL QUESTIONS</label>
+                        <input class="qp-input" id="count" type="number" min="1" max="30" value="10">
+                    </div>
+
+                    <div class="qp-field">
+                        <label class="qp-label" for="difficulty">DIFFICULTY LEVEL</label>
+                        <select class="qp-select" id="difficulty">
+                            <option>Easy</option>
+                            <option selected>Medium</option>
+                            <option>Hard</option>
+                        </select>
+                    </div>
+
+                    <div class="qp-field">
+                        <label class="qp-label" for="marks">TOTAL MARKS</label>
+                        <input class="qp-input" id="marks" type="number" min="1" max="200" value="30">
+                    </div>
+
+                    <div class="qp-field">
+                        <label class="qp-label" for="duration">DURATION (MINUTES)</label>
+                        <input class="qp-input" id="duration" type="number" min="10" max="300" value="60">
+                    </div>
+
+                </div>
+
+                <button class="qp-generate" id="generateBtn">✦ &nbsp; Generate Question Paper</button>
+                <div class="qp-status" id="status"></div>
+            </div>
+
+            <div class="qp-card">
+                <div class="qp-card-head">
+                    <div class="qp-step">2</div>
+                    <div>
+                        <h3>What You'll Get</h3>
+                        <p>StudyX builds the paper around your material.</p>
+                    </div>
+                </div>
+
+                <div class="qp-benefits">
+                    <div class="qp-benefit">
+                        <div class="qp-check">✓</div>
+                        <div><strong>Relevant questions</strong><span>Based on the selected study material.</span></div>
+                    </div>
+                    <div class="qp-benefit">
+                        <div class="qp-check">✓</div>
+                        <div><strong>Multiple formats</strong><span>Mixed, MCQ, short or long questions.</span></div>
+                    </div>
+                    <div class="qp-benefit">
+                        <div class="qp-check">✓</div>
+                        <div><strong>Custom difficulty</strong><span>Adjust the level for your practice.</span></div>
+                    </div>
+                    <div class="qp-benefit">
+                        <div class="qp-check">✓</div>
+                        <div><strong>Marks & duration</strong><span>Your selected exam settings are shown.</span></div>
+                    </div>
+                    <div class="qp-benefit">
+                        <div class="qp-check">✓</div>
+                        <div><strong>Clean preview</strong><span>Review before printing or saving as PDF.</span></div>
+                    </div>
+                </div>
+
+                <div class="qp-tip">
+                    <b>💡 Pro Tip</b>
+                    <span>Use clear, complete PDF notes for more focused question generation.</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- GENERATED PAPER -->
+        <section class="qp-preview" id="preview">
+            <div class="qp-preview-head">
+                <div class="qp-preview-title">
+                    <div class="qp-step">3</div>
+                    <div>
+                        <h3>Generated Question Paper</h3>
+                        <p>Your generated paper appears here.</p>
+                    </div>
+                </div>
+
+                <div class="qp-actions">
+                    <button class="qp-action primary" id="printBtn">🖨 Print / Save PDF</button>
+                    <button class="qp-action" id="regenerateBtn">↻ Regenerate</button>
+                </div>
+            </div>
+
+            <div class="qp-paper" id="paper"></div>
+        </section>
+
+    </main>
+</div>
+
+<script>
+const API_URL = "http://127.0.0.1:8000";
+
+const savedUser = localStorage.getItem("studyxUser");
+
+if (!savedUser) {
+    window.location.href = "login.html";
+}
+
+let user = null;
+
+try {
+    user = JSON.parse(savedUser);
+} catch (error) {
+    localStorage.removeItem("studyxUser");
+    window.location.href = "login.html";
+}
+
+if (!user || !user.email) {
+    localStorage.removeItem("studyxUser");
+    window.location.href = "login.html";
+}
+
+document.getElementById("userName").textContent = user.name || "Student";
+document.getElementById("userEmail").textContent = user.email || "";
+document.getElementById("avatar").textContent =
+    (user.name || "S").charAt(0).toUpperCase();
+
+const materialEl = document.getElementById("material");
+const statusEl = document.getElementById("status");
+
+let selectedType = "mixed";
+let lastPayload = null;
+
+/* QUESTION TYPE */
+document.querySelectorAll(".qp-type").forEach(button => {
+    button.addEventListener("click", () => {
+        document.querySelectorAll(".qp-type").forEach(item => {
+            item.classList.remove("selected");
+        });
+
+        button.classList.add("selected");
+        selectedType = button.dataset.type;
+    });
+});
+
+/* LOAD MATERIALS */
+async function loadMaterials() {
+    try {
+        const response = await fetch(
+            `${API_URL}/materials?email=${encodeURIComponent(user.email)}`
+        );
+
+        if (!response.ok) {
+            throw new Error("Could not load study materials.");
+        }
+
+        const data = await response.json();
+        const materials = data.materials || [];
+
+        materialEl.innerHTML = "";
+
+        if (!materials.length) {
+            materialEl.innerHTML =
+                '<option value="">No study materials found</option>';
+            statusEl.textContent =
+                "Please upload a PDF first from Study Materials.";
+            return;
+        }
+
+        materials.forEach(material => {
+            const option = document.createElement("option");
+            option.value = material.id;
+            option.textContent =
+                `${material.filename} • ${material.pages} pages`;
+            materialEl.appendChild(option);
+        });
+
+    } catch (error) {
+        materialEl.innerHTML =
+            '<option value="">Unable to load materials</option>';
+
+        statusEl.className = "qp-status error";
+        statusEl.textContent = error.message;
+    }
+}
+
+loadMaterials();
+
+/* ESCAPE HTML */
+function escapeHTML(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
+}
+
+/* RENDER PAPER */
+function renderPaper(data) {
+
+    const paper = document.getElementById("paper");
+
+    const title =
+        data.filename || "StudyX Question Paper";
+
+    let html = `
+        <div class="qp-paper-head">
+            <h2>QUESTION PAPER</h2>
+            <p>${escapeHTML(title)}</p>
+            <p>Generated by StudyX AI</p>
+        </div>
+
+        <div class="qp-paper-meta">
+            <span><b>Difficulty:</b> ${escapeHTML(data.difficulty || "Medium")}</span>
+            <span><b>Time:</b> ${escapeHTML(data.duration ?? "—")} Minutes</span>
+            <span><b>Max Marks:</b> ${escapeHTML(data.total_marks ?? "—")}</span>
+        </div>
+    `;
+
+    const sections = data.sections || [];
+
+    sections.forEach(section => {
+
+        const questions = section.questions || [];
+
+        html += `
+            <div class="qp-paper-section">
+                <h4>
+                    ${escapeHTML(section.title || "Questions")}
+                    <span style="font-weight:400;color:#777">
+                        (${questions.length} questions)
+                    </span>
+                </h4>
+        `;
+
+        questions.forEach(question => {
+
+            html += `
+                <div class="qp-question">
+                    <b>
+                        ${escapeHTML(question.number)}.
+                        ${escapeHTML(question.question)}
+                    </b>
+            `;
+
+            if (Array.isArray(question.options) && question.options.length) {
+
+                html += `
+                    <div class="qp-options">
+                        ${question.options.map((option, index) => `
+                            <span>
+                                ${String.fromCharCode(65 + index)})
+                                ${escapeHTML(option)}
+                            </span>
+                        `).join("")}
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+        });
+
+        html += `</div>`;
+    });
+
+    paper.innerHTML = html;
+
+    document.getElementById("preview").classList.add("show");
+
+    window.scrollTo({
+        top: document.getElementById("preview").offsetTop - 20,
+        behavior: "smooth"
+    });
+}
+
+/* GENERATE */
+async function generate() {
+
+    const materialId = materialEl.value;
+
+    if (!materialId) {
+        statusEl.className = "qp-status error";
+        statusEl.textContent = "Please select a study material.";
+        return;
+    }
+
+    const count = Math.min(
+        30,
+        Math.max(
+            1,
+            Number(document.getElementById("count").value) || 10
+        )
+    );
+
+    const marks = Math.max(
+        1,
+        Number(document.getElementById("marks").value) || 30
+    );
+
+    const duration = Math.max(
+        10,
+        Number(document.getElementById("duration").value) || 60
+    );
+
+    const difficulty =
+        document.getElementById("difficulty").value.toLowerCase();
+
+    lastPayload = {
+        email: user.email,
+        material_id: materialId,
+        number_of_questions: count,
+        difficulty,
+        question_type: selectedType,
+        total_marks: marks,
+        duration
+    };
+
+    const button = document.getElementById("generateBtn");
+
+    button.disabled = true;
+    button.textContent = "⏳  Generating your paper...";
+
+    statusEl.className = "qp-status";
+    statusEl.textContent =
+        "StudyX AI is preparing the paper from your material...";
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/ai/question-paper`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(lastPayload)
+            }
+        );
+
+        const data =
+            await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail ||
+                "Unable to generate question paper."
+            );
+        }
+
+        renderPaper(data);
+
+        statusEl.className = "qp-status success";
+        statusEl.textContent =
+            "Question paper generated successfully.";
+
+    } catch (error) {
+
+        statusEl.className = "qp-status error";
+        statusEl.textContent = error.message;
+
+    } finally {
+
+        button.disabled = false;
+        button.textContent = "✦  Generate Question Paper";
+    }
+}
+
+document.getElementById("generateBtn")
+    .addEventListener("click", generate);
+
+document.getElementById("regenerateBtn")
+    .addEventListener("click", generate);
+
+document.getElementById("printBtn")
+    .addEventListener("click", () => {
+        window.print();
+    });
+
+document.getElementById("logoutBtn")
+    .addEventListener("click", event => {
+
+        event.preventDefault();
+
+        localStorage.removeItem("studyxUser");
+        window.location.href = "login.html";
+    });
+</script>
+
+</body>
+</html>
