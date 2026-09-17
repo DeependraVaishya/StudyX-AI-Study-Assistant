@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Settings | StudyX</title>
+<title>Settings | studyx</title>
 <link rel="stylesheet" href="style.css">
 
 <style>
@@ -532,7 +532,7 @@ body.dashboard-page::before{
     <div>
         <span class="section-label">ACCOUNT CONTROL CENTER</span>
         <h1>Settings</h1>
-        <p>Personalize your StudyX experience, learning preferences and account.</p>
+        <p>Personalize your studyx experience, learning preferences and account.</p>
     </div>
 
     <div class="user-profile">
@@ -565,7 +565,7 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Profile</h2>
-                        <p>Manage the information shown across your StudyX account.</p>
+                        <p>Manage the information shown across your studyx account.</p>
                     </div>
                     <span class="status-pill"><span class="status-dot"></span>Active Account</span>
                 </div>
@@ -603,7 +603,7 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Appearance</h2>
-                        <p>Choose how StudyX should look and behave.</p>
+                        <p>Choose how studyx should look and behave.</p>
                     </div>
                 </div>
 
@@ -696,7 +696,7 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Notifications</h2>
-                        <p>Control which StudyX reminders and alerts are enabled.</p>
+                        <p>Control which studyx reminders and alerts are enabled.</p>
                     </div>
                 </div>
 
@@ -736,7 +736,7 @@ body.dashboard-page::before{
                 <div class="setting-row">
                     <div class="setting-info">
                         <strong>AI Feature Updates</strong>
-                        <span>Show updates about new StudyX learning features.</span>
+                        <span>Show updates about new studyx learning features.</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="aiNotification" checked>
@@ -756,7 +756,7 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Privacy</h2>
-                        <p>Control local StudyX preferences and privacy-related behavior.</p>
+                        <p>Control local studyx preferences and privacy-related behavior.</p>
                     </div>
                 </div>
 
@@ -774,7 +774,7 @@ body.dashboard-page::before{
                 <div class="setting-row">
                     <div class="setting-info">
                         <strong>Remember Preferences</strong>
-                        <span>Store your StudyX interface preferences locally.</span>
+                        <span>Store your studyx interface preferences locally.</span>
                     </div>
                     <label class="toggle">
                         <input type="checkbox" id="rememberToggle" checked>
@@ -783,7 +783,7 @@ body.dashboard-page::before{
                 </div>
 
                 <div class="info-box">
-                    StudyX preference controls on this page are stored locally in your browser unless your backend explicitly provides account-level storage.
+                    studyx preference controls on this page are stored locally in your browser unless your backend explicitly provides account-level storage.
                 </div>
 
                 <div class="btn-row">
@@ -805,7 +805,7 @@ body.dashboard-page::before{
                 <div class="setting-row">
                     <div class="setting-info">
                         <strong>Current Session</strong>
-                        <span>This browser is currently signed in to StudyX.</span>
+                        <span>This browser is currently signed in to studyx.</span>
                     </div>
                     <span class="status-pill"><span class="status-dot"></span>Signed In</span>
                 </div>
@@ -821,7 +821,7 @@ body.dashboard-page::before{
                 <div class="setting-row">
                     <div class="setting-info">
                         <strong>Sign Out</strong>
-                        <span>Remove the current StudyX session from this browser.</span>
+                        <span>Remove the current studyx session from this browser.</span>
                     </div>
                     <button class="sx-btn danger" id="securityLogout">Logout</button>
                 </div>
@@ -834,7 +834,7 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Data & Storage</h2>
-                        <p>Manage StudyX data stored locally in this browser.</p>
+                        <p>Manage studyx data stored locally in this browser.</p>
                     </div>
                 </div>
 
@@ -848,7 +848,7 @@ body.dashboard-page::before{
 
                 <div class="setting-row">
                     <div class="setting-info">
-                        <strong>StudyX Preferences</strong>
+                        <strong>studyx Preferences</strong>
                         <span>Reset locally stored Settings preferences.</span>
                     </div>
                     <button class="sx-btn" id="resetSettings">Reset Preferences</button>
@@ -863,7 +863,7 @@ body.dashboard-page::before{
                 </div>
 
                 <div class="info-box">
-                    Your uploaded study materials and progress are handled by your StudyX backend. This page only manages browser-side preferences and chat history.
+                    Your uploaded study materials and progress are handled by your studyx backend. This page only manages browser-side preferences and chat history.
                 </div>
             </div>
         </section>
@@ -874,14 +874,14 @@ body.dashboard-page::before{
                 <div class="card-head">
                     <div>
                         <h2>Account</h2>
-                        <p>Manage your current StudyX session.</p>
+                        <p>Manage your current studyx session.</p>
                     </div>
                 </div>
 
                 <div class="setting-row">
                     <div class="setting-info">
                         <strong>Log Out</strong>
-                        <span>Sign out from StudyX on this browser.</span>
+                        <span>Sign out from studyx on this browser.</span>
                     </div>
                     <button class="sx-btn danger" id="accountLogout">Logout</button>
                 </div>
@@ -972,7 +972,7 @@ function loadPrefs(){
 }
 
 function applyTheme(theme){
-    // StudyX currently uses the premium dark UI as the main application theme.
+    // studyx currently uses the premium dark UI as the main application theme.
     // Keep the selected preference saved so the option is functional without
     // breaking the existing style.css used by the rest of the app.
     document.querySelectorAll(".option[data-theme]").forEach(o => {
@@ -1095,7 +1095,7 @@ function updateStorageStatus(){
     }
     const kb = (used / 1024).toFixed(1);
     document.getElementById("storageStatus").textContent =
-        `${kb} KB currently used by StudyX browser storage.`;
+        `${kb} KB currently used by studyx browser storage.`;
 }
 
 updateUserUI();

@@ -5,13 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>AI Tutor | StudyX</title>
+    <title>AI Tutor | studyx</title>
 
     <link rel="stylesheet" href="style.css">
 
 <style id="studyx-ai-tutor-premium">
 /* =========================================================
-   STUDYX AI TUTOR — PREMIUM AI WORKSPACE
+   studyx AI TUTOR — PREMIUM AI WORKSPACE
    Visual layer only. Existing JS/API preserved.
    ========================================================= */
 :root{
@@ -516,7 +516,7 @@ body.dashboard-page::before{
                     <div>
 
                         <h2>
-                            StudyX AI
+                            studyx AI
                         </h2>
 
                         <span>
@@ -553,7 +553,7 @@ body.dashboard-page::before{
 
                     <textarea
                         id="chatInput"
-                        placeholder="Ask StudyX AI anything..."
+                        placeholder="Ask studyx AI anything..."
                         rows="1"
                     ></textarea>
 
@@ -569,7 +569,7 @@ body.dashboard-page::before{
                 <div class="input-footer">
 
                     <span>
-                        StudyX AI can make mistakes. Verify important information.
+                        studyx AI can make mistakes. Verify important information.
                     </span>
 
                     <span>
@@ -587,7 +587,7 @@ body.dashboard-page::before{
 
    <script>
 /* =========================================================
-   STUDYX AI TUTOR - PROFESSIONAL FRONTEND
+   studyx AI TUTOR - PROFESSIONAL FRONTEND
    Backend: FastAPI
    AI: Gemini (through backend)
    ========================================================= */
@@ -839,7 +839,7 @@ function showTyping() {
             </div>
 
             <div class="studyx-thinking-text">
-                <span>StudyX AI is thinking</span>
+                <span>studyx AI is thinking</span>
 
                 <div class="studyx-dots">
                     <i></i>
@@ -901,7 +901,7 @@ async function askAI(question) {
             data = await response.json();
         } catch (error) {
             throw new Error(
-                "Invalid response received from StudyX backend."
+                "Invalid response received from studyx backend."
             );
         }
 
@@ -909,7 +909,7 @@ async function askAI(question) {
 
             throw new Error(
                 data.detail ||
-                "StudyX AI request failed."
+                "studyx AI request failed."
             );
         }
 
@@ -930,7 +930,7 @@ async function askAI(question) {
         ) {
 
             throw new Error(
-                "StudyX backend is not reachable."
+                "studyx backend is not reachable."
             );
         }
 
@@ -1043,7 +1043,7 @@ async function sendQuestion() {
     } catch (error) {
 
         console.error(
-            "StudyX AI Error:",
+            "studyx AI Error:",
             error
         );
 
@@ -1066,7 +1066,7 @@ async function sendQuestion() {
 
                 <div class="studyx-error-title">
                     <span>⚠</span>
-                    StudyX AI couldn't respond
+                    studyx AI couldn't respond
                 </div>
 
                 <div class="studyx-error-text">
@@ -1598,7 +1598,7 @@ document.head.appendChild(style);
 loadChatHistory();
 
 console.log(
-    "StudyX AI Tutor initialized successfully."
+    "studyx AI Tutor initialized successfully."
 );
 
 console.log(

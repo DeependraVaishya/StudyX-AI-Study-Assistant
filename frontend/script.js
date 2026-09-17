@@ -83,7 +83,7 @@ if (registerForm) {
             console.error(error);
 
             alert(
-                "Cannot connect to StudyX server. " +
+                "Cannot connect to studyx server. " +
                 "Please make sure FastAPI is running."
             );
         }
@@ -158,7 +158,7 @@ if (loginForm) {
             );
 
 
-            // Go to StudyX home
+            // Go to studyx home
             window.location.href = "index.html";
 
 
@@ -167,7 +167,7 @@ if (loginForm) {
             console.error(error);
 
             alert(
-                "Cannot connect to StudyX server. " +
+                "Cannot connect to studyx server. " +
                 "Please make sure FastAPI is running."
             );
         }

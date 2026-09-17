@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>AI Tutor | StudyX</title>
+    <title>AI Tutor | studyx</title>
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -131,7 +131,7 @@
                     <div>
 
                         <h2>
-                            StudyX AI
+                            studyx AI
                         </h2>
 
                         <span>
@@ -168,7 +168,7 @@
 
                     <textarea
                         id="chatInput"
-                        placeholder="Ask StudyX AI anything..."
+                        placeholder="Ask studyx AI anything..."
                         rows="1"
                     ></textarea>
 
@@ -184,7 +184,7 @@
                 <div class="input-footer">
 
                     <span>
-                        StudyX AI can make mistakes. Verify important information.
+                        studyx AI can make mistakes. Verify important information.
                     </span>
 
                     <span>
@@ -279,7 +279,7 @@ function showWelcome() {
     box.innerHTML = `
         <div class="welcome-icon">✦</div>
         <h2>How can I help you study?</h2>
-        <p>Ask StudyX AI a question, explain a concept, or learn from your uploaded PDFs.</p>
+        <p>Ask studyx AI a question, explain a concept, or learn from your uploaded PDFs.</p>
         <div class="quick-prompts">
             <button type="button" data-prompt="Explain this topic in simple words">Explain simply</button>
             <button type="button" data-prompt="Give me a real-world example of this topic">Give an example</button>
@@ -310,7 +310,7 @@ function showTyping() {
             <span class="typing-dot">●</span>
             <span class="typing-dot">●</span>
             <span class="typing-dot">●</span>
-            <span style="margin-left:8px;opacity:.65">StudyX AI is thinking...</span>
+            <span style="margin-left:8px;opacity:.65">studyx AI is thinking...</span>
         </div>
     `;
     chatContainer.appendChild(message);
@@ -378,9 +378,9 @@ async function sendQuestion() {
         addMessage(answer, "ai", true);
         showSources(data.mode === "rag" ? data.sources : []);
     } catch (error) {
-        console.error("StudyX AI Error:", error);
+        console.error("studyx AI Error:", error);
         if (typing) typing.remove();
-        addMessage("❌ AI se connection nahi ho paaya. Please make sure the StudyX backend and Ollama are running.", "ai");
+        addMessage("❌ AI se connection nahi ho paaya. Please make sure the studyx backend and Ollama are running.", "ai");
     } finally {
         isThinking = false;
         sendButton.disabled = false;

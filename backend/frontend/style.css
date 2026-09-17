@@ -920,7 +920,7 @@ a {
     }
 }
 /* =========================================
-   STUDYX DASHBOARD
+   studyx DASHBOARD
 ========================================= */
 
 .dashboard-page {
@@ -1503,7 +1503,7 @@ a {
     }
 }
 /* =========================================
-   STUDYX AI TUTOR
+   studyx AI TUTOR
 ========================================= */
 
 .ai-tutor-main {
@@ -2429,7 +2429,7 @@ a {
 
 }
 /* =========================================
-   FIX — STUDYX SIDEBAR & DASHBOARD LAYOUT
+   FIX — studyx SIDEBAR & DASHBOARD LAYOUT
 ========================================= */
 
 .dashboard-layout {
@@ -2791,7 +2791,7 @@ def generate_study_plan(request: StudyPlanRequest):
 
 
     prompt = f"""
-You are StudyX, an AI study planning assistant.
+You are studyx, an AI study planning assistant.
 
 Create a practical and realistic study plan for a student.
 
