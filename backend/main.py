@@ -36,7 +36,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("GROQ_API_KEY is not configured in .env")
 
-groq_client = Groq(api_key=GROQ_API_KEY)
+groq_client = Groq(
+    api_key=GROQ_API_KEY,
+    timeout=45.0
+)
 
 GROQ_MODEL = "openai/gpt-oss-20b"
 
@@ -472,14 +475,26 @@ def ai_chat(request: ChatRequest):
 
     relevant_chunks = []
 
-    if email:
+# Only load the embedding model if the user
+# actually has uploaded study material.
+# Normal questions go directly to Groq.
+if email:
+    has_material_chunks = material_chunks_collection.find_one(
+        {
+            "email": email,
+            "embedding": {"$exists": True}
+        },
+        {
+            "_id": 1
+        }
+    )
 
+    if has_material_chunks:
         relevant_chunks = find_relevant_chunks(
             question,
             email,
             top_k=3
         )
-
     use_pdf_context = False
 
     if relevant_chunks:
