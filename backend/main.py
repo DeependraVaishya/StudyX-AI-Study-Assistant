@@ -87,16 +87,20 @@ pwd_context = CryptContext(
 
 
 # =========================================================
-# EMBEDDING MODEL
+# LAZY EMBEDDING MODEL
 # =========================================================
 
-print("Loading embedding model...")
+embedding_model = None
 
-embedding_model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+def get_embedding_model():
+    global embedding_model
 
-print("Embedding model loaded successfully!")
+    if embedding_model is None:
+        print("Loading embedding model...")
+        embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        print("Embedding model loaded successfully!")
+
+    return embedding_model
 
 
 # =========================================================
@@ -314,7 +318,7 @@ def find_relevant_chunks(
 ):
 
     question_embedding = (
-        embedding_model
+        get_embedding_model()
         .encode(question)
         .tolist()
     )
@@ -1254,7 +1258,7 @@ async def upload_material(request: Request):
         for index, chunk in enumerate(chunks):
 
             embedding = (
-                embedding_model
+                get_embedding_model()
                 .encode(chunk)
                 .tolist()
             )
