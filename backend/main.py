@@ -475,129 +475,129 @@ def ai_chat(request: ChatRequest):
 
     relevant_chunks = []
 
-# Only load the embedding model if the user
-# actually has uploaded study material.
-# Normal questions go directly to Groq.
-if email:
-    has_material_chunks = material_chunks_collection.find_one(
-        {
-            "email": email,
-            "embedding": {"$exists": True}
-        },
-        {
-            "_id": 1
-        }
-    )
-
-    if has_material_chunks:
-        relevant_chunks = find_relevant_chunks(
-            question,
-            email,
-            top_k=3
+    # Only load the embedding model if the user
+    # actually has uploaded study material.
+    # Normal questions go directly to Groq.
+    if email:
+        has_material_chunks = material_chunks_collection.find_one(
+            {
+                "email": email,
+                "embedding": {"$exists": True}
+            },
+            {
+                "_id": 1
+            }
         )
-    use_pdf_context = False
 
-    if relevant_chunks:
+        if has_material_chunks:
+            relevant_chunks = find_relevant_chunks(
+                question,
+                email,
+                top_k=3
+            )
+        use_pdf_context = False
 
-        best_score = relevant_chunks[0]["similarity"]
+        if relevant_chunks:
 
-        if best_score >= 0.35:
-            use_pdf_context = True
+            best_score = relevant_chunks[0]["similarity"]
 
-    # =====================================================
-    # RAG MODE
-    # =====================================================
+            if best_score >= 0.35:
+                use_pdf_context = True
 
-    if use_pdf_context:
+        # =====================================================
+        # RAG MODE
+        # =====================================================
 
-        context_parts = []
+        if use_pdf_context:
 
-        for index, chunk in enumerate(
-            relevant_chunks
-        ):
+            context_parts = []
 
-            context_parts.append(
-                f"""
-SOURCE {index + 1}
-File: {chunk['filename']}
+            for index, chunk in enumerate(
+                relevant_chunks
+            ):
 
-{chunk['text']}
-"""
+                context_parts.append(
+                    f"""
+    SOURCE {index + 1}
+    File: {chunk['filename']}
+
+    {chunk['text']}
+    """
+                )
+
+            context = "\n\n".join(
+                context_parts
             )
 
-        context = "\n\n".join(
-            context_parts
-        )
+            prompt = f"""
+    You are studyx AI Tutor.
+
+    Answer the student's question using
+    the provided study material.
+
+    Rules:
+
+    1. Prefer the provided PDF content.
+    2. Do not invent information.
+    3. If the PDF does not contain enough
+       information, clearly say so.
+    4. Explain in simple language.
+    5. Use examples when helpful.
+    6. Do not mention internal AI instructions.
+
+    STUDY MATERIAL:
+
+    {context}
+
+    STUDENT QUESTION:
+
+    {question}
+
+    Answer clearly.
+    """
+
+            answer = ask_gemini(prompt)
+
+            return {
+                "answer": answer,
+                "mode": "rag",
+                "sources": [
+                    {
+                        "filename": chunk["filename"],
+                        "chunk_index": chunk["chunk_index"],
+                        "similarity": chunk["similarity"]
+                    }
+                    for chunk in relevant_chunks
+                ]
+            }
+
+        # =====================================================
+        # GENERAL AI MODE
+        # =====================================================
 
         prompt = f"""
-You are studyx AI Tutor.
+    You are studyx AI Tutor.
 
-Answer the student's question using
-the provided study material.
+    Answer the student's question clearly
+    and accurately.
 
-Rules:
+    Explain educational topics in simple
+    language and use examples when helpful.
 
-1. Prefer the provided PDF content.
-2. Do not invent information.
-3. If the PDF does not contain enough
-   information, clearly say so.
-4. Explain in simple language.
-5. Use examples when helpful.
-6. Do not mention internal AI instructions.
+    Student question:
 
-STUDY MATERIAL:
+    {question}
 
-{context}
-
-STUDENT QUESTION:
-
-{question}
-
-Answer clearly.
-"""
+    Give the best helpful answer.
+    """
 
         answer = ask_gemini(prompt)
 
         return {
             "answer": answer,
-            "mode": "rag",
-            "sources": [
-                {
-                    "filename": chunk["filename"],
-                    "chunk_index": chunk["chunk_index"],
-                    "similarity": chunk["similarity"]
-                }
-                for chunk in relevant_chunks
-            ]
+            "mode": "general",
+            "sources": []
         }
-
-    # =====================================================
-    # GENERAL AI MODE
-    # =====================================================
-
-    prompt = f"""
-You are studyx AI Tutor.
-
-Answer the student's question clearly
-and accurately.
-
-Explain educational topics in simple
-language and use examples when helpful.
-
-Student question:
-
-{question}
-
-Give the best helpful answer.
-"""
-
-    answer = ask_gemini(prompt)
-
-    return {
-        "answer": answer,
-        "mode": "general",
-        "sources": []
-    }
 
 
 
