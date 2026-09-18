@@ -871,7 +871,7 @@ async function askAI(question) {
     const timeout =
         setTimeout(
             () => controller.abort(),
-            60000
+            120000
         );
 
     try {
