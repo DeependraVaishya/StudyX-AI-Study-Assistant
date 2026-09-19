@@ -1724,7 +1724,14 @@
             fileInput.value = "";
 
 
-            await loadMaterials();
+            showStatus("PDF uploaded successfully! ✓", "success");
+
+fileInput.value = "";
+
+// Refresh the page after successful upload
+setTimeout(() => {
+    window.location.reload();
+}, 1000);
 
 
         } catch (error) {
