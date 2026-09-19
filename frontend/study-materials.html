@@ -1569,62 +1569,46 @@
         if (!file) return;
 
         if (!file.name.toLowerCase().endsWith(".pdf")) {
-
-            showStatus(
-                "Only PDF files are supported.",
-                "error"
-            );
-
+            showStatus("Only PDF files are supported.", "error");
             return;
         }
 
         if (file.size > 10 * 1024 * 1024) {
-
-            showStatus(
-                "PDF size must be less than 10MB.",
-                "error"
-            );
-
+            showStatus("PDF size must be less than 10MB.", "error");
             return;
         }
 
-        showStatus(
-            "Uploading and processing PDF...",
-            "loading"
-        );
-
-        const formData =
-            new FormData();
-
-        formData.append(
-            "file",
-            file
-        );
-
-        formData.append(
-            "email",
-            user.email
-        );
+        showStatus("Uploading and processing PDF...", "loading");
 
         try {
+            const email = encodeURIComponent(user.email);
+            const filename = encodeURIComponent(file.name);
 
-            const response =
-                await fetch(
-                    `${API_URL}/materials/upload?email=${encodeURIComponent(user.email)}`,
-                    {
-                        method: "POST",
-                        body: formData
-                    }
-                );
+            console.log("Starting RAW PDF upload...");
+            console.log("File:", file.name);
+            console.log("Size:", file.size);
+            console.log("Email:", user.email);
 
-            const data =
-                await response.json();
+            const response = await fetch(
+                `${API_URL}/materials/upload-raw?email=${email}&filename=${filename}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/pdf"
+                    },
+                    body: file
+                }
+            );
+
+            console.log("Upload response status:", response.status);
+
+            const data = await response.json();
+
+            console.log("Upload response:", data);
 
             if (!response.ok) {
-
                 throw new Error(
-                    data.detail ||
-                    "Unable to upload PDF."
+                    data.detail || "Unable to upload PDF."
                 );
             }
 
@@ -1635,50 +1619,17 @@
 
             fileInput.value = "";
 
-
-            /*
-             * Reload the materials list.
-             * If this request fails, the PDF is still
-             * already uploaded to the backend.
-             */
-
-            try {
-
-                await loadMaterials();
-
-            } catch (refreshError) {
-
-                console.warn(
-                    "Library refresh failed:",
-                    refreshError
-                );
-
-                /*
-                 * Keep success message because
-                 * upload itself was successful.
-                 */
-
-                showStatus(
-                    "PDF uploaded successfully! Refresh the page to view it.",
-                    "success"
-                );
-            }
+            await loadMaterials();
 
         } catch (error) {
-
-            console.error(
-                "Upload Error:",
-                error
-            );
+            console.error("Upload Error:", error);
 
             showStatus(
-                error.message ||
-                "Unable to upload PDF.",
+                error.message || "Unable to upload PDF.",
                 "error"
             );
         }
     }
-
 
     /* =====================================================
        LOAD MATERIALS

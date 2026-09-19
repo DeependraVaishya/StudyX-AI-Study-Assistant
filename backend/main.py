@@ -1221,6 +1221,130 @@ async def upload_test(request: Request):
 # PDF UPLOAD + CHUNKS + OPTIONAL EMBEDDINGS
 # =========================================================
 
+# =========================================================
+# RAW PDF UPLOAD
+# =========================================================
+
+@app.post("/materials/upload-raw")
+async def upload_material_raw(request: Request):
+    try:
+        email = (request.query_params.get("email") or "").strip().lower()
+        filename = (request.query_params.get("filename") or "study_material.pdf").strip()
+
+        if not email:
+            raise HTTPException(status_code=400, detail="User email is required.")
+
+        if not filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+        print("========================================")
+        print("RAW PDF UPLOAD STARTED")
+        print("File:", filename)
+        print("Email:", email)
+        print("========================================")
+
+        file_data = await request.body()
+        print("RAW PDF SIZE:", len(file_data), "bytes")
+
+        if not file_data:
+            raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+
+        pdf = fitz.open(stream=file_data, filetype="pdf")
+        extracted_text = ""
+        for page in pdf:
+            extracted_text += page.get_text()
+        page_count = len(pdf)
+        pdf.close()
+
+        print("PDF pages:", page_count)
+        print("Extracted characters:", len(extracted_text))
+
+        chunks = create_chunks(extracted_text, chunk_size=1000, overlap=150)
+        print("Chunks created:", len(chunks))
+
+        if not chunks:
+            raise HTTPException(status_code=400, detail="No readable text found in this PDF.")
+
+        material = {
+            "filename": filename,
+            "email": email,
+            "pages": page_count,
+            "text": extracted_text,
+            "text_length": len(extracted_text),
+            "chunk_count": len(chunks),
+            "embedding_status": "pending"
+        }
+
+        result = materials_collection.insert_one(material)
+        material_id = result.inserted_id
+        print("Material saved:", str(material_id))
+
+        chunk_documents = []
+        for index, chunk in enumerate(chunks):
+            chunk_documents.append({
+                "material_id": material_id,
+                "email": email,
+                "filename": filename,
+                "chunk_index": index,
+                "text": chunk,
+                "text_length": len(chunk)
+            })
+
+        if chunk_documents:
+            material_chunks_collection.insert_many(chunk_documents)
+
+        print(f"{len(chunk_documents)} text chunks saved successfully!")
+
+        embedding_status = "not_generated"
+        try:
+            print("Loading embedding model...")
+            model = get_embedding_model()
+            print(f"Generating embeddings for {len(chunks)} chunks...")
+            embeddings = model.encode(chunks, batch_size=32, show_progress_bar=False)
+
+            for index, embedding in enumerate(embeddings):
+                material_chunks_collection.update_one(
+                    {"material_id": material_id, "chunk_index": index},
+                    {"$set": {
+                        "embedding": embedding.tolist(),
+                        "embedding_model": "all-MiniLM-L6-v2"
+                    }}
+                )
+
+            embedding_status = "generated"
+            materials_collection.update_one(
+                {"_id": material_id},
+                {"$set": {"embedding_status": "generated"}}
+            )
+            print("Embeddings generated successfully!")
+
+        except Exception as embedding_error:
+            print("Embedding generation failed:", str(embedding_error))
+            materials_collection.update_one(
+                {"_id": material_id},
+                {"$set": {
+                    "embedding_status": "failed",
+                    "embedding_error": str(embedding_error)
+                }}
+            )
+
+        return {
+            "message": "PDF uploaded and processed successfully!",
+            "material_id": str(material_id),
+            "filename": filename,
+            "pages": page_count,
+            "text_length": len(extracted_text),
+            "chunk_count": len(chunks),
+            "embeddings": embedding_status
+        }
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        print("RAW PDF UPLOAD ERROR:", str(error))
+        raise HTTPException(status_code=500, detail="Unable to process PDF.")
+
+
 @app.post("/materials/upload")
 async def upload_material(
     request: Request,
