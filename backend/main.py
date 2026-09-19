@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from passlib.context import CryptContext
@@ -1185,19 +1185,26 @@ STUDY MATERIAL:
 # PDF UPLOAD + CHUNKS + OPTIONAL EMBEDDINGS
 # =========================================================
 
+# =========================================================
+# PDF UPLOAD + CHUNKS + OPTIONAL EMBEDDINGS
+# =========================================================
+
 @app.post("/materials/upload")
-async def upload_material(request: Request):
+async def upload_material(
+    request: Request,
+    file: UploadFile = File(...),
+    email: str = Form("")
+):
 
     try:
 
-        form = await request.form()
-
-        file = form.get("file")
-
+        # Frontend currently sends email in query string,
+        # while Swagger can send it as form data.
         email = (
             request.query_params.get("email")
-            or str(form.get("email") or "")
-        )
+            or email
+            or ""
+        ).strip().lower()
 
         if not email:
             raise HTTPException(
@@ -1205,7 +1212,7 @@ async def upload_material(request: Request):
                 detail="User email is required."
             )
 
-        if file is None:
+        if not file.filename:
             raise HTTPException(
                 status_code=400,
                 detail="PDF file is required."
@@ -1229,6 +1236,14 @@ async def upload_material(request: Request):
 
         file_data = await file.read()
 
+        if not file_data:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded PDF is empty."
+            )
+
+        print("PDF size:", len(file_data), "bytes")
+
         pdf = fitz.open(
             stream=file_data,
             filetype="pdf"
@@ -1244,7 +1259,10 @@ async def upload_material(request: Request):
         pdf.close()
 
         print("PDF pages:", page_count)
-        print("Extracted characters:", len(extracted_text))
+        print(
+            "Extracted characters:",
+            len(extracted_text)
+        )
 
         # -----------------------------------------------------
         # CREATE CHUNKS
@@ -1256,7 +1274,10 @@ async def upload_material(request: Request):
             overlap=150
         )
 
-        print("Chunks created:", len(chunks))
+        print(
+            "Chunks created:",
+            len(chunks)
+        )
 
         if not chunks:
             raise HTTPException(
@@ -1265,12 +1286,12 @@ async def upload_material(request: Request):
             )
 
         # -----------------------------------------------------
-        # SAVE MATERIAL FIRST
+        # SAVE MATERIAL
         # -----------------------------------------------------
 
         material = {
             "filename": file.filename,
-            "email": email.strip().lower(),
+            "email": email,
             "pages": page_count,
             "text": extracted_text,
             "text_length": len(extracted_text),
@@ -1278,19 +1299,20 @@ async def upload_material(request: Request):
             "embedding_status": "pending"
         }
 
-        result = materials_collection.insert_one(material)
+        result = materials_collection.insert_one(
+            material
+        )
 
         material_id = result.inserted_id
 
-        print("Material saved:", str(material_id))
+        print(
+            "Material saved:",
+            str(material_id)
+        )
 
         # -----------------------------------------------------
-        # SAVE TEXT CHUNKS FIRST
+        # SAVE TEXT CHUNKS
         # -----------------------------------------------------
-        # IMPORTANT:
-        # Chunks are saved BEFORE embeddings.
-        # Even if the embedding model fails, AI Notes,
-        # Quiz and Question Paper can still use the text.
 
         chunk_documents = []
 
@@ -1298,7 +1320,7 @@ async def upload_material(request: Request):
 
             chunk_documents.append({
                 "material_id": material_id,
-                "email": email.strip().lower(),
+                "email": email,
                 "filename": file.filename,
                 "chunk_index": index,
                 "text": chunk,
@@ -1318,14 +1340,14 @@ async def upload_material(request: Request):
         # -----------------------------------------------------
         # GENERATE EMBEDDINGS
         # -----------------------------------------------------
-        # Embeddings are now optional.
-        # If this fails, the text chunks remain saved.
 
         embedding_status = "not_generated"
 
         try:
 
-            print("Loading embedding model...")
+            print(
+                "Loading embedding model..."
+            )
 
             model = get_embedding_model()
 
@@ -1340,9 +1362,9 @@ async def upload_material(request: Request):
                 show_progress_bar=False
             )
 
-            # Update each saved chunk with its embedding
-
-            for index, embedding in enumerate(embeddings):
+            for index, embedding in enumerate(
+                embeddings
+            ):
 
                 material_chunks_collection.update_one(
                     {
@@ -1351,8 +1373,10 @@ async def upload_material(request: Request):
                     },
                     {
                         "$set": {
-                            "embedding": embedding.tolist(),
-                            "embedding_model": "all-MiniLM-L6-v2"
+                            "embedding":
+                                embedding.tolist(),
+                            "embedding_model":
+                                "all-MiniLM-L6-v2"
                         }
                     }
                 )
@@ -1360,15 +1384,20 @@ async def upload_material(request: Request):
             embedding_status = "generated"
 
             materials_collection.update_one(
-                {"_id": material_id},
+                {
+                    "_id": material_id
+                },
                 {
                     "$set": {
-                        "embedding_status": "generated"
+                        "embedding_status":
+                            "generated"
                     }
                 }
             )
 
-            print("Embeddings generated successfully!")
+            print(
+                "Embeddings generated successfully!"
+            )
 
         except Exception as embedding_error:
 
@@ -1377,16 +1406,16 @@ async def upload_material(request: Request):
                 str(embedding_error)
             )
 
-            print(
-                "Text chunks are still available."
-            )
-
             materials_collection.update_one(
-                {"_id": material_id},
+                {
+                    "_id": material_id
+                },
                 {
                     "$set": {
-                        "embedding_status": "failed",
-                        "embedding_error": str(embedding_error)
+                        "embedding_status":
+                            "failed",
+                        "embedding_error":
+                            str(embedding_error)
                     }
                 }
             )
@@ -1396,13 +1425,26 @@ async def upload_material(request: Request):
         # -----------------------------------------------------
 
         return {
-            "message": "PDF uploaded and processed successfully!",
-            "material_id": str(material_id),
-            "filename": file.filename,
-            "pages": page_count,
-            "text_length": len(extracted_text),
-            "chunk_count": len(chunks),
-            "embeddings": embedding_status
+            "message":
+                "PDF uploaded and processed successfully!",
+
+            "material_id":
+                str(material_id),
+
+            "filename":
+                file.filename,
+
+            "pages":
+                page_count,
+
+            "text_length":
+                len(extracted_text),
+
+            "chunk_count":
+                len(chunks),
+
+            "embeddings":
+                embedding_status
         }
 
     except HTTPException:
@@ -1419,7 +1461,6 @@ async def upload_material(request: Request):
             status_code=500,
             detail="Unable to process PDF."
         )
-
 # =========================================================
 # GET USER MATERIALS
 # =========================================================
