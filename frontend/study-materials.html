@@ -1478,71 +1478,37 @@
     const savedUser =
         localStorage.getItem("studyxUser");
 
-
     if (!savedUser) {
-
-        window.location.href =
-            "login.html";
-
+        window.location.href = "login.html";
     }
-
 
     let user = null;
 
-
     try {
-
-        user =
-            JSON.parse(savedUser);
-
+        user = JSON.parse(savedUser);
     } catch (error) {
-
-        localStorage.removeItem(
-            "studyxUser"
-        );
-
-        window.location.href =
-            "login.html";
-
+        localStorage.removeItem("studyxUser");
+        window.location.href = "login.html";
     }
-
 
     if (!user || !user.email) {
-
-        localStorage.removeItem(
-            "studyxUser"
-        );
-
-        window.location.href =
-            "login.html";
-
+        localStorage.removeItem("studyxUser");
+        window.location.href = "login.html";
     }
-
 
 
     /* =====================================================
        USER INFORMATION
     ===================================================== */
 
-    document.getElementById(
-        "userName"
-    ).textContent =
+    document.getElementById("userName").textContent =
         user.name || "Student";
 
-
-    document.getElementById(
-        "userEmail"
-    ).textContent =
+    document.getElementById("userEmail").textContent =
         user.email;
 
-
-    document.getElementById(
-        "userAvatar"
-    ).textContent =
-        (user.name || "S")
-            .charAt(0)
-            .toUpperCase();
-
+    document.getElementById("userAvatar").textContent =
+        (user.name || "S").charAt(0).toUpperCase();
 
 
     /* =====================================================
@@ -1550,49 +1516,32 @@
     ===================================================== */
 
     const fileInput =
-        document.getElementById(
-            "fileInput"
-        );
+        document.getElementById("fileInput");
 
     const uploadBox =
-        document.getElementById(
-            "uploadBox"
-        );
+        document.getElementById("uploadBox");
 
     const uploadStatus =
-        document.getElementById(
-            "uploadStatus"
-        );
+        document.getElementById("uploadStatus");
 
     const materialsContainer =
-        document.getElementById(
-            "materialsContainer"
-        );
+        document.getElementById("materialsContainer");
 
     const materialSearch =
-        document.getElementById(
-            "materialSearch"
-        );
-
+        document.getElementById("materialSearch");
 
 
     /* =====================================================
        STATUS
     ===================================================== */
 
-    function showStatus(
-        message,
-        type = ""
-    ) {
+    function showStatus(message, type = "") {
 
-        uploadStatus.textContent =
-            message;
+        uploadStatus.textContent = message;
 
         uploadStatus.className =
             "upload-status " + type;
-
     }
-
 
 
     /* =====================================================
@@ -1602,17 +1551,13 @@
     function escapeHTML(value) {
 
         const div =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         div.textContent =
             value || "";
 
         return div.innerHTML;
-
     }
-
 
 
     /* =====================================================
@@ -1620,90 +1565,218 @@
     ===================================================== */
 
     async function uploadPDF(file) {
-    if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-        showStatus("Only PDF files are supported.", "error");
-        return;
-    }
+        if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-        showStatus("PDF size must be less than 10MB.", "error");
-        return;
-    }
+        if (!file.name.toLowerCase().endsWith(".pdf")) {
 
-    showStatus("Uploading and processing PDF...", "loading");
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("email", user.email);
-
-    try {
-        const response = await fetch(
-            `${API_URL}/materials/upload?email=${encodeURIComponent(user.email)}`,
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(
-                data.detail || "Unable to upload PDF."
+            showStatus(
+                "Only PDF files are supported.",
+                "error"
             );
+
+            return;
         }
 
-        // Upload successful
+        if (file.size > 10 * 1024 * 1024) {
+
+            showStatus(
+                "PDF size must be less than 10MB.",
+                "error"
+            );
+
+            return;
+        }
+
         showStatus(
-            "PDF uploaded successfully! ✓",
-            "success"
+            "Uploading and processing PDF...",
+            "loading"
         );
 
-        fileInput.value = "";
+        const formData =
+            new FormData();
 
-        // Add uploaded PDF immediately to the library
-        if (data.material_id) {
-            const newMaterial = {
-                _id: data.material_id,
-                id: data.material_id,
-                filename: data.filename || file.name,
-                pages: data.pages || 0,
-                text_length: data.text_length || 0,
-                chunk_count: data.chunk_count || 0
-            };
+        formData.append(
+            "file",
+            file
+        );
 
-            // Refresh library from backend.
-            // If this request fails, the upload itself is still successful.
-            try {
-                await loadMaterials();
-            } catch (refreshError) {
-                console.warn(
-                    "Library refresh failed after upload:",
-                    refreshError
+        formData.append(
+            "email",
+            user.email
+        );
+
+        try {
+
+            const response =
+                await fetch(
+                    `${API_URL}/materials/upload?email=${encodeURIComponent(user.email)}`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+            const data =
+                await response.json();
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Unable to upload PDF."
                 );
             }
+
+            showStatus(
+                "PDF uploaded successfully! ✓",
+                "success"
+            );
+
+            fileInput.value = "";
+
+
+            /*
+             * Reload the materials list.
+             * If this request fails, the PDF is still
+             * already uploaded to the backend.
+             */
+
+            try {
+
+                await loadMaterials();
+
+            } catch (refreshError) {
+
+                console.warn(
+                    "Library refresh failed:",
+                    refreshError
+                );
+
+                /*
+                 * Keep success message because
+                 * upload itself was successful.
+                 */
+
+                showStatus(
+                    "PDF uploaded successfully! Refresh the page to view it.",
+                    "success"
+                );
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Upload Error:",
+                error
+            );
+
+            showStatus(
+                error.message ||
+                "Unable to upload PDF.",
+                "error"
+            );
         }
-
-    } catch (error) {
-        console.error("Upload Error:", error);
-
-        showStatus(
-            error.message ||
-            "NetworkError when attempting to fetch resource.",
-            "error"
-        );
     }
-}
+
+
+    /* =====================================================
+       LOAD MATERIALS
+    ===================================================== */
+
+    async function loadMaterials() {
+
+        try {
+
+            const response =
+                await fetch(
+                    `${API_URL}/materials?email=${encodeURIComponent(user.email)}`,
+                    {
+                        method: "GET",
+                        cache: "no-store"
+                    }
+                );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `Unable to load materials (${response.status})`
+                );
+            }
+
+            const data =
+                await response.json();
+
+
+            /*
+             * Backend may return:
+             * { materials: [...] }
+             * or directly [...]
+             */
+
+            let materials = [];
+
+            if (Array.isArray(data)) {
+
+                materials = data;
+
+            } else if (
+                data &&
+                Array.isArray(data.materials)
+            ) {
+
+                materials =
+                    data.materials;
+
+            } else if (
+                data &&
+                Array.isArray(data.data)
+            ) {
+
+                materials =
+                    data.data;
+            }
+
+
+            renderMaterials(materials);
+
+        } catch (error) {
+
+            console.error(
+                "Materials Error:",
+                error
+            );
+
+            materialsContainer.innerHTML = `
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📚
+                    </div>
+
+                    <h3>
+                        Unable to load materials
+                    </h3>
+
+                    <p>
+                        Please refresh the page and try again.
+                    </p>
+
+                </div>
+
+            `;
+
+            throw error;
+        }
+    }
+
 
     /* =====================================================
        RENDER MATERIALS
     ===================================================== */
 
-    function renderMaterials(
-        materials
-    ) {
+    function renderMaterials(materials) {
 
         const searchText =
             materialSearch.value
@@ -1714,9 +1787,13 @@
         const filteredMaterials =
             materials.filter(
                 material =>
-                    material.filename
-                        .toLowerCase()
-                        .includes(searchText)
+                    String(
+                        material.filename ||
+                        material.name ||
+                        ""
+                    )
+                    .toLowerCase()
+                    .includes(searchText)
             );
 
 
@@ -1737,19 +1814,23 @@
                     </div>
 
                     <h3>
+
                         ${
                             searchText
                                 ? "No materials found"
                                 : "No study materials yet"
                         }
+
                     </h3>
 
                     <p>
+
                         ${
                             searchText
                                 ? "Try another search."
                                 : "Upload your first PDF to start building your library."
                         }
+
                     </p>
 
                 </div>
@@ -1757,7 +1838,6 @@
             `;
 
             return;
-
         }
 
 
@@ -1765,174 +1845,336 @@
 
             <div class="materials-grid">
 
-                ${filteredMaterials
-                    .map(
-                        material => `
+                ${
+                    filteredMaterials
+                        .map(material => {
 
-                        <article class="material-card">
+                            const materialId =
+                                material.id ||
+                                material._id ||
+                                "";
 
-                            <div class="material-content">
+                            const filename =
+                                material.filename ||
+                                material.name ||
+                                "Study Material";
 
+                            const pages =
+                                material.pages ||
+                                0;
 
-                                <div class="pdf-icon">
-                                    📄
-                                </div>
-
-
-                                <div class="material-info">
-
-                                    <h3
-                                        title="${escapeHTML(material.filename)}">
-
-                                        ${escapeHTML(
-                                            material.filename
-                                        )}
-
-                                    </h3>
+                            const textLength =
+                                material.text_length ||
+                                0;
 
 
-                                    <div class="material-meta">
+                            return `
 
-                                        <span>
-                                            📑 ${material.pages} pages
-                                        </span>
+                                <article class="material-card">
 
-                                        <span>
-                                            📝 ${material.text_length} chars
-                                        </span>
+                                    <div class="material-content">
+
+                                        <div class="pdf-icon">
+                                            📄
+                                        </div>
+
+
+                                        <div class="material-info">
+
+                                            <h3
+                                                title="${escapeHTML(filename)}"
+                                            >
+                                                ${escapeHTML(filename)}
+                                            </h3>
+
+
+                                            <div class="material-meta">
+
+                                                <span>
+                                                    📑 ${pages} pages
+                                                </span>
+
+                                                <span>
+                                                    📝 ${textLength} chars
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+
+
+                                        <div class="material-actions">
+
+                                            <button
+                                                class="ai-notes-button"
+                                                title="Generate AI Revision Notes PDF"
+                                                onclick="generateRevisionPDF('${materialId}', this)"
+                                            >
+                                                ✨ AI Notes
+                                            </button>
+
+
+                                            <button
+                                                class="delete-button"
+                                                title="Delete material"
+                                                onclick="deleteMaterial('${materialId}')"
+                                            >
+                                                🗑
+                                            </button>
+
+                                        </div>
 
                                     </div>
 
-                                </div>
+                                </article>
 
+                            `;
 
-                                <div class="material-actions">
-
-                                    <button
-                                        class="ai-notes-button"
-                                        title="Generate AI Revision Notes PDF"
-                                        onclick="generateRevisionPDF('${material.id}', this)">
-
-                                        ✨ AI Notes
-
-                                    </button>
-
-                                    <button
-                                        class="delete-button"
-                                        title="Delete material"
-                                        onclick="deleteMaterial('${material.id}')">
-
-                                        🗑
-
-                                    </button>
-
-                                </div>
-
-
-                            </div>
-
-                        </article>
-
-                    `
-                    )
-                    .join("")}
+                        })
+                        .join("")
+                }
 
             </div>
 
         `;
-
     }
 
 
+    /* =====================================================
+       FILE SELECT
+    ===================================================== */
+
+    fileInput.addEventListener(
+        "change",
+        function () {
+
+            if (
+                this.files &&
+                this.files.length > 0
+            ) {
+
+                uploadPDF(
+                    this.files[0]
+                );
+            }
+        }
+    );
+
+
+    /* =====================================================
+       DRAG & DROP
+    ===================================================== */
+
+    uploadBox.addEventListener(
+        "dragover",
+        function (event) {
+
+            event.preventDefault();
+
+            uploadBox.classList.add(
+                "dragging"
+            );
+        }
+    );
+
+
+    uploadBox.addEventListener(
+        "dragleave",
+        function () {
+
+            uploadBox.classList.remove(
+                "dragging"
+            );
+        }
+    );
+
+
+    uploadBox.addEventListener(
+        "drop",
+        function (event) {
+
+            event.preventDefault();
+
+            uploadBox.classList.remove(
+                "dragging"
+            );
+
+            const files =
+                event.dataTransfer.files;
+
+            if (
+                files &&
+                files.length > 0
+            ) {
+
+                uploadPDF(
+                    files[0]
+                );
+            }
+        }
+    );
 
 
     /* =====================================================
        GENERATE AI REVISION NOTES PDF
     ===================================================== */
 
-    async function generateRevisionPDF(materialId, button) {
+    async function generateRevisionPDF(
+        materialId,
+        button
+    ) {
 
         if (!materialId) {
-            alert("Material ID is missing.");
+
+            alert(
+                "Material ID is missing."
+            );
+
             return;
         }
 
-        const originalText = button.innerHTML;
+        const originalText =
+            button.innerHTML;
 
         try {
 
             button.disabled = true;
-            button.innerHTML = "⏳ Generating...";
 
-            const response = await fetch(
-                `${API_URL}/ai/notes-pdf`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        email: user.email,
-                        material_id: materialId
-                    })
-                }
-            );
+            button.innerHTML =
+                "⏳ Generating...";
+
+
+            const response =
+                await fetch(
+                    `${API_URL}/ai/notes-pdf`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body:
+                            JSON.stringify({
+                                email:
+                                    user.email,
+
+                                material_id:
+                                    materialId
+                            })
+                    }
+                );
+
 
             if (!response.ok) {
 
-                let errorMessage = "Unable to generate AI revision notes.";
+                let errorMessage =
+                    "Unable to generate AI revision notes.";
 
                 try {
-                    const errorData = await response.json();
+
+                    const errorData =
+                        await response.json();
+
                     errorMessage =
                         errorData.detail ||
                         errorMessage;
-                } catch (_) {
-                    // Keep the default message if the response is not JSON.
-                }
 
-                throw new Error(errorMessage);
+                } catch (_) {}
+
+                throw new Error(
+                    errorMessage
+                );
             }
 
-            const blob = await response.blob();
 
-            if (!blob || blob.size === 0) {
-                throw new Error("The generated PDF is empty.");
+            const blob =
+                await response.blob();
+
+
+            if (
+                !blob ||
+                blob.size === 0
+            ) {
+
+                throw new Error(
+                    "The generated PDF is empty."
+                );
             }
 
-            /* Get filename from backend response when available. */
-            let filename = "AI_Revision_Notes.pdf";
+
+            let filename =
+                "AI_Revision_Notes.pdf";
+
+
             const disposition =
-                response.headers.get("Content-Disposition") || "";
+                response.headers.get(
+                    "Content-Disposition"
+                ) || "";
+
 
             const filenameMatch =
-                disposition.match(/filename="?([^"]+)"?/i);
+                disposition.match(
+                    /filename="?([^"]+)"?/i
+                );
 
-            if (filenameMatch && filenameMatch[1]) {
-                filename = filenameMatch[1];
+
+            if (
+                filenameMatch &&
+                filenameMatch[1]
+            ) {
+
+                filename =
+                    filenameMatch[1];
             }
 
+
             const downloadUrl =
-                window.URL.createObjectURL(blob);
+                window.URL.createObjectURL(
+                    blob
+                );
+
 
             const link =
                 document.createElement("a");
 
-            link.href = downloadUrl;
-            link.download = filename;
+            link.href =
+                downloadUrl;
 
-            document.body.appendChild(link);
+            link.download =
+                filename;
+
+            document.body.appendChild(
+                link
+            );
+
             link.click();
+
             link.remove();
 
-            window.URL.revokeObjectURL(downloadUrl);
 
-            button.innerHTML = "✓ Downloaded";
+            window.URL.revokeObjectURL(
+                downloadUrl
+            );
 
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-            }, 1800);
+
+            button.innerHTML =
+                "✓ Downloaded";
+
+
+            setTimeout(
+                () => {
+
+                    button.innerHTML =
+                        originalText;
+
+                    button.disabled =
+                        false;
+
+                },
+                1800
+            );
 
         } catch (error) {
 
@@ -1946,8 +2188,11 @@
                 "Unable to generate AI revision notes. Please try again."
             );
 
-            button.innerHTML = originalText;
-            button.disabled = false;
+            button.innerHTML =
+                originalText;
+
+            button.disabled =
+                false;
         }
     }
 
@@ -1992,12 +2237,10 @@
                     data.detail ||
                     "Unable to delete material."
                 );
-
             }
 
 
             await loadMaterials();
-
 
         } catch (error) {
 
@@ -2005,11 +2248,8 @@
                 error.message ||
                 "Unable to delete material."
             );
-
         }
-
     }
-
 
 
     /* =====================================================
@@ -2018,9 +2258,11 @@
 
     materialSearch.addEventListener(
         "input",
-        loadMaterials
-    );
+        function () {
 
+            loadMaterials();
+        }
+    );
 
 
     /* =====================================================
@@ -2041,10 +2283,8 @@
 
                 window.location.href =
                     "login.html";
-
             }
         );
-
 
 
     /* =====================================================
@@ -2054,7 +2294,6 @@
     loadMaterials();
 
 </script>
-
 </body>
 
 </html>
