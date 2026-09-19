@@ -1620,285 +1620,82 @@
     ===================================================== */
 
     async function uploadPDF(file) {
+    if (!file) return;
 
-        if (!file) {
-            return;
-        }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+        showStatus("Only PDF files are supported.", "error");
+        return;
+    }
 
+    if (file.size > 10 * 1024 * 1024) {
+        showStatus("PDF size must be less than 10MB.", "error");
+        return;
+    }
 
-        /* FILE TYPE */
+    showStatus("Uploading and processing PDF...", "loading");
 
-        if (
-            !file.name
-                .toLowerCase()
-                .endsWith(".pdf")
-        ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("email", user.email);
 
-            showStatus(
-                "Only PDF files are supported.",
-                "error"
+    try {
+        const response = await fetch(
+            `${API_URL}/materials/upload?email=${encodeURIComponent(user.email)}`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Unable to upload PDF."
             );
-
-            return;
-
         }
 
+        // Upload successful
+        showStatus(
+            "PDF uploaded successfully! ✓",
+            "success"
+        );
 
-        /* FILE SIZE */
+        fileInput.value = "";
 
-        if (
-            file.size >
-            10 * 1024 * 1024
-        ) {
+        // Add uploaded PDF immediately to the library
+        if (data.material_id) {
+            const newMaterial = {
+                _id: data.material_id,
+                id: data.material_id,
+                filename: data.filename || file.name,
+                pages: data.pages || 0,
+                text_length: data.text_length || 0,
+                chunk_count: data.chunk_count || 0
+            };
 
-            showStatus(
-                "PDF size must be less than 10MB.",
-                "error"
-            );
-
-            return;
-
+            // Refresh library from backend.
+            // If this request fails, the upload itself is still successful.
+            try {
+                await loadMaterials();
+            } catch (refreshError) {
+                console.warn(
+                    "Library refresh failed after upload:",
+                    refreshError
+                );
+            }
         }
 
+    } catch (error) {
+        console.error("Upload Error:", error);
 
         showStatus(
-            "Uploading and processing PDF...",
-            "loading"
+            error.message ||
+            "NetworkError when attempting to fetch resource.",
+            "error"
         );
-
-
-        /* =================================================
-           FORM DATA
-           FILE + EMAIL
-        ================================================= */
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "file",
-            file
-        );
-
-
-        formData.append(
-            "email",
-            user.email
-        );
-
-
-        try {
-
-            const response =
-                await fetch(
-                    `${API_URL}/materials/upload?email=${encodeURIComponent(user.email)}`,
-                    {
-                        method: "POST",
-
-                        body: formData
-                    }
-                );
-
-
-            const data =
-                await response.json();
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.detail ||
-                    "Unable to upload PDF."
-                );
-
-            }
-
-
-            showStatus(
-                "PDF uploaded successfully! ✓",
-                "success"
-            );
-
-
-            fileInput.value = "";
-
-
-            showStatus("PDF uploaded successfully! ✓", "success");
-
-fileInput.value = "";
-
-// Refresh the page after successful upload
-setTimeout(() => {
-    window.location.reload();
-}, 1000);
-
-
-        } catch (error) {
-
-            console.error(
-                "Upload Error:",
-                error
-            );
-
-
-            showStatus(
-                error.message ||
-                "Unable to upload PDF. Check your FastAPI server.",
-                "error"
-            );
-
-        }
-
     }
-
-
-
-    /* =====================================================
-       FILE SELECT
-    ===================================================== */
-
-    fileInput.addEventListener(
-        "change",
-        function () {
-
-            uploadPDF(
-                this.files[0]
-            );
-
-        }
-    );
-
-
-
-    /* =====================================================
-       DRAG OVER
-    ===================================================== */
-
-    uploadBox.addEventListener(
-        "dragover",
-        function (event) {
-
-            event.preventDefault();
-
-            uploadBox.classList.add(
-                "dragging"
-            );
-
-        }
-    );
-
-
-
-    /* =====================================================
-       DRAG LEAVE
-    ===================================================== */
-
-    uploadBox.addEventListener(
-        "dragleave",
-        function () {
-
-            uploadBox.classList.remove(
-                "dragging"
-            );
-
-        }
-    );
-
-
-
-    /* =====================================================
-       DROP
-    ===================================================== */
-
-    uploadBox.addEventListener(
-        "drop",
-        function (event) {
-
-            event.preventDefault();
-
-            uploadBox.classList.remove(
-                "dragging"
-            );
-
-
-            const file =
-                event.dataTransfer.files[0];
-
-
-            uploadPDF(file);
-
-        }
-    );
-
-
-
-    /* =====================================================
-       LOAD MATERIALS
-    ===================================================== */
-
-    async function loadMaterials() {
-
-        try {
-
-            const response =
-                await fetch(
-                    `${API_URL}/materials?email=${encodeURIComponent(user.email)}`
-                );
-
-
-            const data =
-                await response.json();
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.detail ||
-                    "Unable to load materials."
-                );
-
-            }
-
-
-            renderMaterials(
-                data.materials || []
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "Materials Error:",
-                error
-            );
-
-
-            materialsContainer.innerHTML = `
-
-                <div class="empty-state">
-
-                    <div class="empty-icon">
-                        ⚠️
-                    </div>
-
-                    <h3>
-                        Unable to load materials
-                    </h3>
-
-                    <p>
-                        Make sure your FastAPI server is running.
-                    </p>
-
-                </div>
-
-            `;
-
-        }
-
-    }
-
-
+}
 
     /* =====================================================
        RENDER MATERIALS
