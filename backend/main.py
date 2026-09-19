@@ -1178,12 +1178,44 @@ STUDY MATERIAL:
 
 
 # =========================================================
-# PDF UPLOAD + AUTOMATIC EMBEDDINGS
+# UPLOAD DIAGNOSTIC TEST
 # =========================================================
 
-# =========================================================
-# PDF UPLOAD + CHUNKS + OPTIONAL EMBEDDINGS
-# =========================================================
+@app.post("/upload-test")
+async def upload_test(request: Request):
+
+    print("========================================")
+    print("UPLOAD TEST REQUEST RECEIVED")
+    print("========================================")
+
+    try:
+        body = await request.body()
+
+        print(
+            "UPLOAD TEST BODY SIZE:",
+            len(body),
+            "bytes"
+        )
+
+        return {
+            "success": True,
+            "received_bytes": len(body)
+        }
+
+    except Exception as error:
+
+        print(
+            "UPLOAD TEST ERROR:",
+            str(error)
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Upload test failed."
+        )
+
+
+
 
 # =========================================================
 # PDF UPLOAD + CHUNKS + OPTIONAL EMBEDDINGS
