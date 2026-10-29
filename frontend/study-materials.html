@@ -1117,6 +1117,78 @@
 @media(prefers-reduced-motion:reduce){
     .materials-page *, .materials-page *::before, .materials-page *::after{scroll-behavior:auto !important;transition:none !important;animation:none !important;}
 }
+/* ================================
+   STUDY MATERIAL CARD FIX
+   ================================ */
+
+.material-card,
+.material-item,
+.study-material-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+}
+
+.material-card *,
+.material-item *,
+.study-material-card * {
+    box-sizing: border-box !important;
+}
+
+.material-info {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+}
+
+.material-info h3,
+.material-info h4 {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+.material-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 0 0 auto !important;
+    flex-wrap: wrap !important;
+}
+
+.material-actions button {
+    white-space: nowrap !important;
+    flex: 0 0 auto !important;
+}
+
+/* Main materials container */
+.materials-grid,
+.materials-list,
+.my-materials {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Smaller screens */
+@media (max-width: 700px) {
+    .material-card,
+    .material-item,
+    .study-material-card {
+        width: 100% !important;
+    }
+
+    .material-actions {
+        width: 100% !important;
+        margin-top: 10px !important;
+    }
+
+    .material-actions button {
+        flex: 1 1 auto !important;
+    }
+}
 </style>
 </head>
 
@@ -1467,8 +1539,7 @@
        API
     ===================================================== */
 
-    const API_URL =
-        "https://studyx-ai-study-assistant.onrender.com";
+    const API_URL = "http://127.0.0.1:8000";
 
 
     /* =====================================================

@@ -1086,6 +1086,24 @@ body.dashboard-page::before{
 
 
 
+        <!-- ABOUT STUDYX -->
+        <section class="dashboard-section">
+            <div class="section-heading">
+                <div>
+                    <span class="section-label">ABOUT STUDYX</span>
+                    <h2>Your AI Study Assistant</h2>
+                </div>
+            </div>
+            <div class="ai-card">
+                <div class="ai-card-icon">✦</div>
+                <div>
+                    <h3>Learn smarter with StudyX</h3>
+                    <p>StudyX is an AI-powered study assistant that helps you learn from your study materials, understand difficult concepts with AI Tutor, generate quizzes and question papers, create study plans, practice AI Viva, and track your learning progress in one place.</p>
+                </div>
+            </div>
+        </section>
+
+
         <!-- =================================================
              RECENT ACTIVITY
         ================================================== -->
@@ -1146,7 +1164,7 @@ body.dashboard-page::before{
     <script>
 
         const API_URL =
-            "https://studyx-ai-study-assistant.onrender.com";
+            "http://127.0.0.1:8000";
 
 
 
@@ -1257,7 +1275,7 @@ body.dashboard-page::before{
                         await progressResponse.json();
 
                     progress =
-                        progressData.progress || [];
+                        (progressData.progress || []).filter(item => item.type === "quiz" || !item.type);
 
                 }
 

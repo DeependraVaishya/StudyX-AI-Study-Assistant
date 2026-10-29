@@ -1,3 +1,5 @@
+const API_URL = "http://127.0.0.1:8000";
+
 const loginForm = document.getElementById("loginForm");
 const registerForm = document.getElementById("registerForm");
 
@@ -47,7 +49,7 @@ if (registerForm) {
         try {
 
             const response = await fetch(
-                "https://studyx-ai-study-assistant.onrender.com/register",
+                `${API_URL}/register`,
                 {
                     method: "POST",
 
@@ -77,14 +79,16 @@ if (registerForm) {
 
             registerForm.reset();
 
+            window.location.href = "login.html";
+
 
         } catch (error) {
 
-            console.error(error);
+            console.error("Registration Error:", error);
 
             alert(
-                "Cannot connect to studyx server. " +
-                "Please make sure FastAPI is running."
+                "Cannot connect to StudyX server.\n\n" +
+                "Please make sure the FastAPI backend is running."
             );
         }
     });
@@ -121,7 +125,7 @@ if (loginForm) {
         try {
 
             const response = await fetch(
-                "https://studyx-ai-study-assistant.onrender.com/login",
+                `${API_URL}/login`,
                 {
                     method: "POST",
 
@@ -146,11 +150,6 @@ if (loginForm) {
             }
 
 
-            alert(
-                `Welcome back, ${data.name}!`
-            );
-
-
             // Save logged-in user
             localStorage.setItem(
                 "studyxUser",
@@ -158,17 +157,17 @@ if (loginForm) {
             );
 
 
-            // Go to studyx home
+            // Directly go to StudyX home
             window.location.href = "index.html";
 
 
         } catch (error) {
 
-            console.error(error);
+            console.error("Login Error:", error);
 
             alert(
-                "Cannot connect to studyx server. " +
-                "Please make sure FastAPI is running."
+                "Cannot connect to StudyX server.\n\n" +
+                "Please make sure the FastAPI backend is running."
             );
         }
     });

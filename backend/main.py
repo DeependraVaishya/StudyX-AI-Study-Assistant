@@ -13,7 +13,7 @@ import json
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from passlib.context import CryptContext
@@ -54,11 +54,15 @@ app = FastAPI(title="studyx API")
 # =========================================================
 # CORS
 # =========================================================
+# NOTE (FIX): allow_origins=["*"] together with allow_credentials=True is
+# rejected by browsers (invalid per CORS spec) -> requests from the frontend
+# can silently fail. Since this API doesn't use cookies (login just returns
+# JSON), allow_credentials is set to False so the wildcard origin works.
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -69,6 +73,10 @@ app.add_middleware(
 # =========================================================
 
 MONGO_URI = os.getenv("MONGO_URI")
+
+if not MONGO_URI:
+    raise RuntimeError("MONGO_URI is not configured in .env")
+
 client = MongoClient(MONGO_URI)
 db = client["studyx"]
 
@@ -203,19 +211,18 @@ class VivaEvaluateRequest(BaseModel):
 
 
 # =========================================================
-# GROQ AI FUNCTION
+# MULTI AI ENGINE
 # =========================================================
+
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 
 def ask_groq(
     prompt: str,
     json_mode: bool = False,
     max_completion_tokens: int | None = None
 ):
-    """Generate an AI response using Groq.
-
-    max_completion_tokens can be increased for structured outputs such as
-    question papers. Existing callers keep their previous behavior.
-    """
     try:
         request_data = {
             "model": GROQ_MODEL,
@@ -225,44 +232,264 @@ def ask_groq(
                     "content": prompt
                 }
             ],
-            "temperature": 0.2,
+            "temperature": 0.2
         }
 
         if max_completion_tokens is not None:
             request_data["max_completion_tokens"] = max_completion_tokens
 
         if json_mode:
-            request_data["response_format"] = {"type": "json_object"}
+            request_data["response_format"] = {
+                "type": "json_object"
+            }
 
-        response = groq_client.chat.completions.create(**request_data)
+        response = groq_client.chat.completions.create(
+            **request_data
+        )
+
         content = response.choices[0].message.content
 
         if not content:
-            raise Exception("Groq returned an empty response.")
+            raise Exception("Groq returned empty response.")
 
         return content.strip()
 
     except Exception as error:
-        error_text = str(error)
-        print("Groq Error:", error_text)
-        raise HTTPException(
-            status_code=500,
-            detail="Groq AI could not generate a response. Please try again."
+        print("Groq Error:", str(error))
+        raise Exception("Groq failed.")
+
+
+def ask_gemini_api(
+    prompt: str,
+    max_completion_tokens: int | None = None
+):
+    api_key = os.getenv("GEMINI_API_KEY")
+
+    if not api_key:
+        raise Exception("GEMINI_API_KEY missing.")
+
+    from google import genai
+
+    client = genai.Client(
+        api_key=api_key
+    )
+
+    config = {}
+
+    if max_completion_tokens:
+        config["max_output_tokens"] = max_completion_tokens
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=config
+    )
+
+    if not response.text:
+        raise Exception("Gemini returned empty response.")
+
+    return response.text.strip()
+
+
+def ask_openai_api(
+    prompt: str,
+    max_completion_tokens: int | None = None
+):
+    import urllib.request
+    import json
+
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        raise Exception("OPENAI_API_KEY missing.")
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.2
+    }
+
+    if max_completion_tokens:
+        payload["max_tokens"] = max_completion_tokens
+
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
+        method="POST"
+    )
+
+    with urllib.request.urlopen(
+        request,
+        timeout=45
+    ) as response:
+
+        data = json.loads(
+            response.read().decode()
         )
 
+    return data["choices"][0]["message"]["content"].strip()
 
-# Backward-compatible name so the existing endpoints keep working.
+
+def ask_deepseek_api(
+    prompt: str,
+    max_completion_tokens: int | None = None
+):
+    import urllib.request
+    import json
+
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+
+    if not api_key:
+        raise Exception("DEEPSEEK_API_KEY missing.")
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.2
+    }
+
+    if max_completion_tokens:
+        payload["max_tokens"] = max_completion_tokens
+
+    request = urllib.request.Request(
+        "https://api.deepseek.com/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        },
+        method="POST"
+    )
+
+    with urllib.request.urlopen(
+        request,
+        timeout=45
+    ) as response:
+
+        data = json.loads(
+            response.read().decode()
+        )
+
+    return data["choices"][0]["message"]["content"].strip()
+
+
+def ask_multi_ai(
+    prompt: str,
+    json_mode: bool = False,
+    max_completion_tokens: int | None = None
+):
+    """
+    Runs Groq, Gemini, OpenAI and DeepSeek
+    simultaneously.
+
+    The first successful response is returned
+    so existing StudyX response formats remain
+    unchanged.
+    """
+
+    providers = [
+        (
+            "Groq",
+            lambda: ask_groq(
+                prompt,
+                json_mode=json_mode,
+                max_completion_tokens=max_completion_tokens
+            )
+        ),
+        (
+            "Gemini",
+            lambda: ask_gemini_api(
+                prompt,
+                max_completion_tokens
+            )
+        ),
+        (
+            "OpenAI",
+            lambda: ask_openai_api(
+                prompt,
+                max_completion_tokens
+            )
+        ),
+        (
+            "DeepSeek",
+            lambda: ask_deepseek_api(
+                prompt,
+                max_completion_tokens
+            )
+        )
+    ]
+
+    results = []
+
+    with ThreadPoolExecutor(
+        max_workers=4
+    ) as executor:
+
+        futures = {
+            executor.submit(function): name
+            for name, function in providers
+        }
+
+        for future in futures:
+
+            try:
+
+                result = future.result()
+
+                if result:
+                    results.append(result)
+
+                print(
+                    futures[future],
+                    "AI response received."
+                )
+
+            except Exception as error:
+
+                print(
+                    futures[future],
+                    "failed:",
+                    str(error)
+                )
+
+    if not results:
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "All AI providers failed. "
+                "Please check your API keys."
+            )
+        )
+
+    return results[0]
+
+
+# Existing StudyX endpoints continue using this function.
 def ask_gemini(
     prompt: str,
     json_mode: bool = False,
     max_completion_tokens: int | None = None
 ):
-    return ask_groq(
+    return ask_multi_ai(
         prompt,
         json_mode=json_mode,
         max_completion_tokens=max_completion_tokens
     )
-
 
 # =========================================================
 # TEXT CHUNKING
@@ -473,11 +700,18 @@ def ai_chat(request: ChatRequest):
             detail="Message cannot be empty."
         )
 
-    relevant_chunks = []
+    # ---------------------------------------------------
+    # FIX: previously the entire "general AI" fallback lived
+    # INSIDE `if email:`. When email was blank, the function
+    # fell through with no return statement (silently
+    # returning None / breaking the response). use_pdf_context
+    # is now computed first, and the general-mode answer below
+    # always executes as a guaranteed fallback.
+    # ---------------------------------------------------
 
-    # Only load the embedding model if the user
-    # actually has uploaded study material.
-    # Normal questions go directly to Groq.
+    relevant_chunks = []
+    use_pdf_context = False
+
     if email:
         has_material_chunks = material_chunks_collection.find_one(
             {
@@ -495,7 +729,6 @@ def ai_chat(request: ChatRequest):
                 email,
                 top_k=3
             )
-        use_pdf_context = False
 
         if relevant_chunks:
 
@@ -504,100 +737,100 @@ def ai_chat(request: ChatRequest):
             if best_score >= 0.35:
                 use_pdf_context = True
 
-        # =====================================================
-        # RAG MODE
-        # =====================================================
+    # =====================================================
+    # RAG MODE
+    # =====================================================
 
-        if use_pdf_context:
+    if use_pdf_context:
 
-            context_parts = []
+        context_parts = []
 
-            for index, chunk in enumerate(
-                relevant_chunks
-            ):
+        for index, chunk in enumerate(
+            relevant_chunks
+        ):
 
-                context_parts.append(
-                    f"""
-    SOURCE {index + 1}
-    File: {chunk['filename']}
+            context_parts.append(
+                f"""
+SOURCE {index + 1}
+File: {chunk['filename']}
 
-    {chunk['text']}
-    """
-                )
-
-            context = "\n\n".join(
-                context_parts
+{chunk['text']}
+"""
             )
 
-            prompt = f"""
-    You are studyx AI Tutor.
-
-    Answer the student's question using
-    the provided study material.
-
-    Rules:
-
-    1. Prefer the provided PDF content.
-    2. Do not invent information.
-    3. If the PDF does not contain enough
-       information, clearly say so.
-    4. Explain in simple language.
-    5. Use examples when helpful.
-    6. Do not mention internal AI instructions.
-
-    STUDY MATERIAL:
-
-    {context}
-
-    STUDENT QUESTION:
-
-    {question}
-
-    Answer clearly.
-    """
-
-            answer = ask_gemini(prompt)
-
-            return {
-                "answer": answer,
-                "mode": "rag",
-                "sources": [
-                    {
-                        "filename": chunk["filename"],
-                        "chunk_index": chunk["chunk_index"],
-                        "similarity": chunk["similarity"]
-                    }
-                    for chunk in relevant_chunks
-                ]
-            }
-
-        # =====================================================
-        # GENERAL AI MODE
-        # =====================================================
+        context = "\n\n".join(
+            context_parts
+        )
 
         prompt = f"""
-    You are studyx AI Tutor.
+You are studyx AI Tutor.
 
-    Answer the student's question clearly
-    and accurately.
+Answer the student's question using
+the provided study material.
 
-    Explain educational topics in simple
-    language and use examples when helpful.
+Rules:
 
-    Student question:
+1. Prefer the provided PDF content.
+2. Do not invent information.
+3. If the PDF does not contain enough
+   information, clearly say so.
+4. Explain in simple language.
+5. Use examples when helpful.
+6. Do not mention internal AI instructions.
 
-    {question}
+STUDY MATERIAL:
 
-    Give the best helpful answer.
-    """
+{context}
+
+STUDENT QUESTION:
+
+{question}
+
+Answer clearly.
+"""
 
         answer = ask_gemini(prompt)
 
         return {
             "answer": answer,
-            "mode": "general",
-            "sources": []
+            "mode": "rag",
+            "sources": [
+                {
+                    "filename": chunk["filename"],
+                    "chunk_index": chunk["chunk_index"],
+                    "similarity": chunk["similarity"]
+                }
+                for chunk in relevant_chunks
+            ]
         }
+
+    # =====================================================
+    # GENERAL AI MODE (always reachable now, email or not)
+    # =====================================================
+
+    prompt = f"""
+You are studyx AI Tutor.
+
+Answer the student's question clearly
+and accurately.
+
+Explain educational topics in simple
+language and use examples when helpful.
+
+Student question:
+
+{question}
+
+Give the best helpful answer.
+"""
+
+    answer = ask_gemini(prompt)
+
+    return {
+        "answer": answer,
+        "mode": "general",
+        "sources": []
+    }
 
 
 
@@ -1225,24 +1458,56 @@ async def upload_test(request: Request):
 # RAW PDF UPLOAD
 # =========================================================
 
+# =========================================================
+# BACKGROUND EMBEDDING GENERATION
+# =========================================================
+
+def generate_embeddings_background(material_id, chunks):
+    try:
+        print("========================================")
+        print("BACKGROUND EMBEDDING STARTED")
+        print("Material ID:", str(material_id))
+        print("Total chunks:", len(chunks))
+        print("========================================")
+
+        model = get_embedding_model()
+        embeddings = model.encode(chunks, batch_size=32, show_progress_bar=False)
+
+        for index, embedding in enumerate(embeddings):
+            material_chunks_collection.update_one(
+                {"material_id": material_id, "chunk_index": index},
+                {"$set": {
+                    "embedding": embedding.tolist(),
+                    "embedding_model": "all-MiniLM-L6-v2"
+                }}
+            )
+
+        materials_collection.update_one(
+            {"_id": material_id},
+            {"$set": {"embedding_status": "generated"}, "$unset": {"embedding_error": ""}}
+        )
+        print("BACKGROUND EMBEDDING COMPLETED")
+
+    except Exception as error:
+        print("BACKGROUND EMBEDDING ERROR:", str(error))
+        materials_collection.update_one(
+            {"_id": material_id},
+            {"$set": {"embedding_status": "failed", "embedding_error": str(error)}}
+        )
+
+
 @app.post("/materials/upload-raw")
-async def upload_material_raw(request: Request):
+async def upload_material_raw(request: Request, background_tasks: BackgroundTasks):
     try:
         email = (request.query_params.get("email") or "").strip().lower()
         filename = (request.query_params.get("filename") or "study_material.pdf").strip()
 
         if not email:
             raise HTTPException(status_code=400, detail="User email is required.")
-
         if not filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
-        print("========================================")
-        print("RAW PDF UPLOAD STARTED")
-        print("File:", filename)
-        print("Email:", email)
-        print("========================================")
-
+        print("RAW PDF UPLOAD STARTED:", filename, email)
         file_data = await request.body()
         print("RAW PDF SIZE:", len(file_data), "bytes")
 
@@ -1250,18 +1515,11 @@ async def upload_material_raw(request: Request):
             raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
         pdf = fitz.open(stream=file_data, filetype="pdf")
-        extracted_text = ""
-        for page in pdf:
-            extracted_text += page.get_text()
+        extracted_text = "".join(page.get_text() for page in pdf)
         page_count = len(pdf)
         pdf.close()
 
-        print("PDF pages:", page_count)
-        print("Extracted characters:", len(extracted_text))
-
         chunks = create_chunks(extracted_text, chunk_size=1000, overlap=150)
-        print("Chunks created:", len(chunks))
-
         if not chunks:
             raise HTTPException(status_code=400, detail="No readable text found in this PDF.")
 
@@ -1274,68 +1532,34 @@ async def upload_material_raw(request: Request):
             "chunk_count": len(chunks),
             "embedding_status": "pending"
         }
-
         result = materials_collection.insert_one(material)
         material_id = result.inserted_id
-        print("Material saved:", str(material_id))
 
-        chunk_documents = []
-        for index, chunk in enumerate(chunks):
-            chunk_documents.append({
+        chunk_documents = [
+            {
                 "material_id": material_id,
                 "email": email,
                 "filename": filename,
                 "chunk_index": index,
                 "text": chunk,
                 "text_length": len(chunk)
-            })
-
+            }
+            for index, chunk in enumerate(chunks)
+        ]
         if chunk_documents:
             material_chunks_collection.insert_many(chunk_documents)
 
-        print(f"{len(chunk_documents)} text chunks saved successfully!")
-
-        embedding_status = "not_generated"
-        try:
-            print("Loading embedding model...")
-            model = get_embedding_model()
-            print(f"Generating embeddings for {len(chunks)} chunks...")
-            embeddings = model.encode(chunks, batch_size=32, show_progress_bar=False)
-
-            for index, embedding in enumerate(embeddings):
-                material_chunks_collection.update_one(
-                    {"material_id": material_id, "chunk_index": index},
-                    {"$set": {
-                        "embedding": embedding.tolist(),
-                        "embedding_model": "all-MiniLM-L6-v2"
-                    }}
-                )
-
-            embedding_status = "generated"
-            materials_collection.update_one(
-                {"_id": material_id},
-                {"$set": {"embedding_status": "generated"}}
-            )
-            print("Embeddings generated successfully!")
-
-        except Exception as embedding_error:
-            print("Embedding generation failed:", str(embedding_error))
-            materials_collection.update_one(
-                {"_id": material_id},
-                {"$set": {
-                    "embedding_status": "failed",
-                    "embedding_error": str(embedding_error)
-                }}
-            )
+        background_tasks.add_task(generate_embeddings_background, material_id, chunks)
 
         return {
-            "message": "PDF uploaded and processed successfully!",
+            "success": True,
+            "message": "PDF uploaded successfully!",
             "material_id": str(material_id),
             "filename": filename,
             "pages": page_count,
             "text_length": len(extracted_text),
             "chunk_count": len(chunks),
-            "embeddings": embedding_status
+            "embeddings": "processing"
         }
 
     except HTTPException:
@@ -1348,102 +1572,31 @@ async def upload_material_raw(request: Request):
 @app.post("/materials/upload")
 async def upload_material(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     email: str = Form("")
 ):
-
     try:
-
-        # Frontend currently sends email in query string,
-        # while Swagger can send it as form data.
-        email = (
-            request.query_params.get("email")
-            or email
-            or ""
-        ).strip().lower()
-
+        email = (request.query_params.get("email") or email or "").strip().lower()
         if not email:
-            raise HTTPException(
-                status_code=400,
-                detail="User email is required."
-            )
-
+            raise HTTPException(status_code=400, detail="User email is required.")
         if not file.filename:
-            raise HTTPException(
-                status_code=400,
-                detail="PDF file is required."
-            )
-
+            raise HTTPException(status_code=400, detail="PDF file is required.")
         if not file.filename.lower().endswith(".pdf"):
-            raise HTTPException(
-                status_code=400,
-                detail="Only PDF files are supported."
-            )
-
-        print("========================================")
-        print("PDF UPLOAD STARTED")
-        print("File:", file.filename)
-        print("Email:", email)
-        print("========================================")
-
-        # -----------------------------------------------------
-        # READ PDF
-        # -----------------------------------------------------
+            raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
         file_data = await file.read()
-
         if not file_data:
-            raise HTTPException(
-                status_code=400,
-                detail="Uploaded PDF is empty."
-            )
+            raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
 
-        print("PDF size:", len(file_data), "bytes")
-
-        pdf = fitz.open(
-            stream=file_data,
-            filetype="pdf"
-        )
-
-        extracted_text = ""
-
-        for page in pdf:
-            extracted_text += page.get_text()
-
+        pdf = fitz.open(stream=file_data, filetype="pdf")
+        extracted_text = "".join(page.get_text() for page in pdf)
         page_count = len(pdf)
-
         pdf.close()
 
-        print("PDF pages:", page_count)
-        print(
-            "Extracted characters:",
-            len(extracted_text)
-        )
-
-        # -----------------------------------------------------
-        # CREATE CHUNKS
-        # -----------------------------------------------------
-
-        chunks = create_chunks(
-            extracted_text,
-            chunk_size=1000,
-            overlap=150
-        )
-
-        print(
-            "Chunks created:",
-            len(chunks)
-        )
-
+        chunks = create_chunks(extracted_text, chunk_size=1000, overlap=150)
         if not chunks:
-            raise HTTPException(
-                status_code=400,
-                detail="No readable text found in this PDF."
-            )
-
-        # -----------------------------------------------------
-        # SAVE MATERIAL
-        # -----------------------------------------------------
+            raise HTTPException(status_code=400, detail="No readable text found in this PDF.")
 
         material = {
             "filename": file.filename,
@@ -1454,169 +1607,43 @@ async def upload_material(
             "chunk_count": len(chunks),
             "embedding_status": "pending"
         }
-
-        result = materials_collection.insert_one(
-            material
-        )
-
+        result = materials_collection.insert_one(material)
         material_id = result.inserted_id
 
-        print(
-            "Material saved:",
-            str(material_id)
-        )
-
-        # -----------------------------------------------------
-        # SAVE TEXT CHUNKS
-        # -----------------------------------------------------
-
-        chunk_documents = []
-
-        for index, chunk in enumerate(chunks):
-
-            chunk_documents.append({
+        chunk_documents = [
+            {
                 "material_id": material_id,
                 "email": email,
                 "filename": file.filename,
                 "chunk_index": index,
                 "text": chunk,
                 "text_length": len(chunk)
-            })
-
+            }
+            for index, chunk in enumerate(chunks)
+        ]
         if chunk_documents:
+            material_chunks_collection.insert_many(chunk_documents)
 
-            material_chunks_collection.insert_many(
-                chunk_documents
-            )
-
-        print(
-            f"{len(chunk_documents)} text chunks saved successfully!"
-        )
-
-        # -----------------------------------------------------
-        # GENERATE EMBEDDINGS
-        # -----------------------------------------------------
-
-        embedding_status = "not_generated"
-
-        try:
-
-            print(
-                "Loading embedding model..."
-            )
-
-            model = get_embedding_model()
-
-            print(
-                f"Generating embeddings for "
-                f"{len(chunks)} chunks..."
-            )
-
-            embeddings = model.encode(
-                chunks,
-                batch_size=32,
-                show_progress_bar=False
-            )
-
-            for index, embedding in enumerate(
-                embeddings
-            ):
-
-                material_chunks_collection.update_one(
-                    {
-                        "material_id": material_id,
-                        "chunk_index": index
-                    },
-                    {
-                        "$set": {
-                            "embedding":
-                                embedding.tolist(),
-                            "embedding_model":
-                                "all-MiniLM-L6-v2"
-                        }
-                    }
-                )
-
-            embedding_status = "generated"
-
-            materials_collection.update_one(
-                {
-                    "_id": material_id
-                },
-                {
-                    "$set": {
-                        "embedding_status":
-                            "generated"
-                    }
-                }
-            )
-
-            print(
-                "Embeddings generated successfully!"
-            )
-
-        except Exception as embedding_error:
-
-            print(
-                "Embedding generation failed:",
-                str(embedding_error)
-            )
-
-            materials_collection.update_one(
-                {
-                    "_id": material_id
-                },
-                {
-                    "$set": {
-                        "embedding_status":
-                            "failed",
-                        "embedding_error":
-                            str(embedding_error)
-                    }
-                }
-            )
-
-        # -----------------------------------------------------
-        # FINAL RESPONSE
-        # -----------------------------------------------------
+        background_tasks.add_task(generate_embeddings_background, material_id, chunks)
 
         return {
-            "message":
-                "PDF uploaded and processed successfully!",
-
-            "material_id":
-                str(material_id),
-
-            "filename":
-                file.filename,
-
-            "pages":
-                page_count,
-
-            "text_length":
-                len(extracted_text),
-
-            "chunk_count":
-                len(chunks),
-
-            "embeddings":
-                embedding_status
+            "success": True,
+            "message": "PDF uploaded successfully!",
+            "material_id": str(material_id),
+            "filename": file.filename,
+            "pages": page_count,
+            "text_length": len(extracted_text),
+            "chunk_count": len(chunks),
+            "embeddings": "processing"
         }
 
     except HTTPException:
         raise
-
     except Exception as error:
+        print("Upload Error:", str(error))
+        raise HTTPException(status_code=500, detail="Unable to process PDF.")
 
-        print(
-            "Upload Error:",
-            str(error)
-        )
 
-        raise HTTPException(
-            status_code=500,
-            detail="Unable to process PDF."
-        )
 # =========================================================
 # GET USER MATERIALS
 # =========================================================
@@ -2216,7 +2243,6 @@ def generate_revision_notes_pdf(
     email = request.email.strip().lower()
 
     if not email:
-
         raise HTTPException(
             status_code=400,
             detail="Email is required."
@@ -2227,13 +2253,11 @@ def generate_revision_notes_pdf(
     # -----------------------------------------------------
 
     try:
-
         material_object_id = ObjectId(
             request.material_id
         )
 
     except Exception:
-
         raise HTTPException(
             status_code=400,
             detail="Invalid material ID."
@@ -2245,14 +2269,13 @@ def generate_revision_notes_pdf(
     })
 
     if not material:
-
         raise HTTPException(
             status_code=404,
             detail="Study material not found."
         )
 
     # -----------------------------------------------------
-    # GET EXISTING PDF CHUNKS
+    # GET PDF CHUNKS
     # -----------------------------------------------------
 
     chunks_cursor = (
@@ -2277,86 +2300,126 @@ def generate_revision_notes_pdf(
         ).strip()
 
         if text:
-
             chunks.append(text)
 
     if not chunks:
-
         raise HTTPException(
             status_code=404,
             detail="No text chunks found for this PDF."
         )
 
-    print(
-        "========================================"
-    )
-
-    print(
-        "AI REVISION NOTES GENERATION STARTED"
-    )
-
-    print(
-        "File:",
-        material["filename"]
-    )
-
-    print(
-        "Total chunks:",
-        len(chunks)
-    )
-
-    print(
-        "========================================"
-    )
+    print("========================================")
+    print("AI REVISION NOTES GENERATION STARTED")
+    print("File:", material["filename"])
+    print("Total chunks:", len(chunks))
+    print("========================================")
 
     # -----------------------------------------------------
-    # SINGLE-CALL AI ANALYSIS
+    # REDUCE GROQ TOKEN USAGE
     # -----------------------------------------------------
-    # Keep Groq usage to ONE request per PDF.
-    # The existing MongoDB chunks are reused; the original PDF is not
-    # uploaded again. A generous source limit keeps the prompt practical
-    # while avoiding multiple Groq calls and quota exhaustion.
+    # Groq free limits are token based.
+    # Do NOT send the entire PDF.
+    #
+    # 12,000 characters is roughly 3,000 tokens.
+    # This leaves room for the prompt + AI response.
+    # -----------------------------------------------------
 
-    source_text = "\n\n".join(chunks)
-    max_source_chars = 80000
+    max_source_chars = 9000
 
-    if len(source_text) > max_source_chars:
-        source_text = source_text[:max_source_chars]
-        print(
-            f"Source text capped at {max_source_chars} characters "
-            "to keep the single Groq request manageable."
+    source_text = ""
+
+    # Take chunks from across the PDF instead of only
+    # taking the beginning.
+    if len(chunks) == 1:
+
+        source_text = chunks[0][:max_source_chars]
+
+    else:
+
+        target_chunks = min(
+            len(chunks),
+            12
         )
 
-    print("Analyzing complete PDF with ONE Groq request...")
+        indexes = []
+
+        for i in range(target_chunks):
+
+            index = round(
+                i * (len(chunks) - 1)
+                / max(target_chunks - 1, 1)
+            )
+
+            indexes.append(index)
+
+        used_chars = 0
+        selected_parts = []
+
+        for index in indexes:
+
+            part = chunks[index].strip()
+
+            if not part:
+                continue
+
+            remaining = (
+                max_source_chars
+                - used_chars
+            )
+
+            if remaining <= 300:
+                break
+
+            part = part[:remaining]
+
+            selected_parts.append(
+                f"\n[SOURCE SECTION {index + 1}]\n{part}"
+            )
+
+            used_chars += len(part)
+
+        source_text = "\n".join(
+            selected_parts
+        )
+
+    print(
+        "Revision source characters:",
+        len(source_text)
+    )
+
+    # -----------------------------------------------------
+    # REVISION PROMPT
+    # -----------------------------------------------------
 
     revision_prompt = f"""
-You are studyx AI Revision Notes Generator.
+You are StudyX AI Revision Notes Generator.
 
-Create a complete, concise, exam-friendly revision guide from the
-following student's study material.
+Create concise, exam-friendly revision notes
+from the supplied study material.
 
 IMPORTANT RULES:
-1. Use ONLY information present in the supplied study material.
-2. Do not invent facts, topics, definitions, examples, formulas, or questions.
-3. Remove repetition, filler, and irrelevant content.
-4. Keep explanations simple and student-friendly.
-5. Preserve important technical terminology exactly where useful.
-6. Identify the most important topics and concepts for revision.
-7. Include definitions, examples, formulas only when present in the source.
-8. Include likely exam questions based ONLY on the source material.
-9. Include short quick-revision points.
-10. Organize the result clearly for a printable PDF.
-11. Keep the response reasonably concise so it can be converted into a PDF.
-12. Return ONLY valid JSON. Do not use Markdown fences.
 
-Return EXACTLY this JSON structure:
+1. Use ONLY information present in the supplied material.
+2. Do not invent facts or information.
+3. Keep explanations simple.
+4. Focus on important exam topics.
+5. Include important definitions.
+6. Include examples only when present in the source.
+7. Include important exam questions.
+8. Include quick revision points.
+9. Keep the response concise.
+10. Return ONLY valid JSON.
+11. Do NOT use markdown fences.
+
+Return EXACTLY this structure:
 
 {{
   "title": "AI Revision Notes",
+
   "important_topics": [
     {{
       "topic": "Topic Name",
-      "explanation": "Concise and simple explanation",
+      "explanation": "Simple explanation",
       "key_points": [
         "Key point 1",
         "Key point 2",
@@ -2364,23 +2427,27 @@ Return EXACTLY this JSON structure:
       ]
     }}
   ],
+
   "definitions": [
     {{
       "term": "Term",
-      "definition": "Concise definition"
+      "definition": "Definition"
     }}
   ],
+
   "examples": [
     {{
       "topic": "Topic",
-      "example": "Concise example"
+      "example": "Example"
     }}
   ],
+
   "important_exam_questions": [
     "Question 1",
     "Question 2",
     "Question 3"
   ],
+
   "quick_revision": [
     "Quick revision point 1",
     "Quick revision point 2",
@@ -2393,11 +2460,24 @@ STUDY MATERIAL:
 {source_text}
 """
 
+    # -----------------------------------------------------
+    # GROQ REQUEST
+    # -----------------------------------------------------
+
     try:
 
-        final_response = ask_gemini(
+        print(
+            "Sending reduced revision request to Groq..."
+        )
+
+        final_response = ask_groq(
             revision_prompt,
-            json_mode=False
+            json_mode=False,
+            max_completion_tokens=1400
+        )
+
+        print(
+            "Groq revision response received."
         )
 
         notes_data = clean_revision_json(
@@ -2408,16 +2488,21 @@ STUDY MATERIAL:
 
         print(
             "Revision generation error:",
-            error
+            str(error)
         )
 
         raise HTTPException(
             status_code=500,
             detail=(
-                "AI could not create the revision notes. "
-                "Please check your Groq quota and try again."
+                "AI could not create revision notes. "
+                "Groq rate limit may have been reached. "
+                "Please wait a little and try again."
             )
         )
+
+    # -----------------------------------------------------
+    # VALIDATE RESPONSE
+    # -----------------------------------------------------
 
     if not isinstance(
         notes_data,
@@ -2454,7 +2539,6 @@ STUDY MATERIAL:
     ).strip()
 
     if not safe_name:
-
         safe_name = "Study_Material"
 
     output_filename = (
@@ -2491,7 +2575,6 @@ STUDY MATERIAL:
                 f'attachment; filename="{output_filename}"'
         }
     )
-
 # =========================================================
 # AI STUDY PLANNER
 # =========================================================
